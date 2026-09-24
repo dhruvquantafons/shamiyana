@@ -78,3 +78,16 @@ export function createAdminClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
+
+/**
+ * A throwaway anonymous client that keeps no session and sets no cookies.
+ * Used to check a password (re-authentication) without replacing the
+ * signed-in session — which would also drop it from aal2 back to aal1.
+ */
+export function createEphemeralClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}

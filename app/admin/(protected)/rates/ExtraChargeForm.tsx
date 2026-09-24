@@ -1,8 +1,11 @@
 "use client";
 
+import { keepFormOnSubmit } from "../../components/useKeepForm";
+
 import { useActionState } from "react";
 import type { ExtraCharge } from "../../../lib/types";
-import { updateExtraCharge, type ActionState } from "../../actions";
+import { updateExtraCharge } from "../../rates-actions";
+import type { ActionState } from "../../form-utils";
 import { inputClass, secondaryButtonClass, Banner } from "../../components/ui";
 
 export default function ExtraChargeForm({ charge }: { charge: ExtraCharge }) {
@@ -12,7 +15,7 @@ export default function ExtraChargeForm({ charge }: { charge: ExtraCharge }) {
   );
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form action={formAction} onSubmit={keepFormOnSubmit(formAction)} className="space-y-2">
       <input type="hidden" name="id" value={charge.id} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-[200px]">

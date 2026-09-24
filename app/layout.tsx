@@ -19,7 +19,7 @@ const body = Plus_Jakarta_Sans({
 
 const TITLE = `${SITE.name} | ${SITE.tagline}`;
 const DESCRIPTION =
-  "Experience warm hospitality, refined deluxe rooms, authentic Kashmiri dining, and peaceful valley charm at Hotel Samci Riviera, Srinagar.";
+  "Experience warm hospitality, refined deluxe rooms, authentic Kashmiri dining, and peaceful valley charm at Hotel Shamiyana, Srinagar.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   applicationName: SITE.name,
   keywords: [
-    "Hotel Samci Riviera",
+    "Hotel Shamiyana",
     "hotels in Srinagar",
     "Srinagar hotel near Dal Lake",
     "Kashmir hotel booking",

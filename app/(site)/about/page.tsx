@@ -5,7 +5,7 @@ import PageHeader from "../../components/PageHeader";
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "Hotel Samci Riviera is situated at a prime location in the valley of Kashmir — 1.5 km from Dal Lake and Lal Chowk, on the bank of the Jhelum, with 33 Deluxe Rooms, 03 Royal Suites and 02 Presidential Suites.",
+    "Hotel Shamiyana is situated at a prime location in the valley of Kashmir — 1.5 km from Dal Lake and Lal Chowk, on the bank of the Jhelum, with 33 Deluxe Rooms, 03 Royal Suites and 02 Presidential Suites.",
   alternates: { canonical: "/about" },
 };
 

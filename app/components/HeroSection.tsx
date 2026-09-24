@@ -15,7 +15,7 @@ const HERO_SLIDES = [
   {
     id: 1,
     image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop",
-    tagline: "HOTEL SAMCI RIVIERA",
+    tagline: "HOTEL SHAMIYANA",
     heading: "Where Valley Serenity Meets Warm Hospitality",
     subtext: "Nestled in Srinagar near the scenic Jhelum River, experience refined rooms, authentic Kashmiri hospitality, and peaceful valley charm.",
   },

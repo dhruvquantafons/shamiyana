@@ -261,6 +261,14 @@ section[id] {
   border-radius: 4px;
 }
 
+/* The admin panel uses its own yellow accent; inputs already show a ring. */
+.admin-theme :where(a, button, summary):focus-visible {
+  outline-color: #ca8a04;
+}
+.admin-theme :where(input, select, textarea):focus-visible {
+  outline: none;
+}
+
 /* ---------------------------------------------------------------------------
    Respect the visitor's motion preference.
    The accessibility statement promises this, so it is a hard switch: reveals

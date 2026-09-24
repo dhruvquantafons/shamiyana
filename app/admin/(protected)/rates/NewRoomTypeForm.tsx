@@ -1,8 +1,11 @@
 "use client";
 
+import { keepFormOnSubmit } from "../../components/useKeepForm";
+
 import { useActionState, useRef, useEffect } from "react";
 import { Plus } from "lucide-react";
-import { createRoomType, type ActionState } from "../../actions";
+import { createRoomType } from "../../rates-actions";
+import type { ActionState } from "../../form-utils";
 import { Field, inputClass, buttonClass, Banner } from "../../components/ui";
 
 export default function NewRoomTypeForm() {
@@ -20,14 +23,14 @@ export default function NewRoomTypeForm() {
 
   return (
     <details className="group">
-      <summary className="flex items-center gap-2 cursor-pointer list-none text-sm font-medium text-[#a88956] hover:text-[#8f7343] transition-colors">
-        <span className="w-6 h-6 rounded-full bg-[#f2ece2] flex items-center justify-center">
+      <summary className="flex items-center gap-2 cursor-pointer list-none text-sm font-medium text-yellow-700 hover:text-yellow-800 transition-colors">
+        <span className="w-6 h-6 rounded-full bg-yellow-50 flex items-center justify-center">
           <Plus className="w-3.5 h-3.5 transition-transform group-open:rotate-45" />
         </span>
         <span>Add a new room type</span>
       </summary>
 
-      <form ref={formRef} action={formAction} className="space-y-4 mt-5">
+      <form ref={formRef} action={formAction} onSubmit={keepFormOnSubmit(formAction)} className="space-y-4 mt-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Name" hint="Shown as the card heading, e.g. Royal Suite.">
             <input name="name" required placeholder="Royal Suite" className={inputClass} />
@@ -43,6 +46,25 @@ export default function NewRoomTypeForm() {
             />
           </Field>
         </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Field label="Weekend rate (₹)" hint="Fri & Sat nights. Blank: same as above.">
+            <input type="number" name="weekend_rate" min={0} step="1" className={inputClass} />
+          </Field>
+          <Field label="Adults included" hint="Extra adults pay the extra-occupant charge.">
+            <input type="number" name="base_occupancy" min={1} max={20} defaultValue={2} className={inputClass} />
+          </Field>
+          <Field label="Max adults">
+            <input type="number" name="max_adults" min={1} max={20} defaultValue={2} className={inputClass} />
+          </Field>
+          <Field label="Max children">
+            <input type="number" name="max_children" min={0} max={20} defaultValue={1} className={inputClass} />
+          </Field>
+        </div>
+
+        <Field label="Amenities" hint="One per line — the full list for the room detail and booking portal.">
+          <textarea name="amenities" rows={3} placeholder={"Air conditioning\nMini bar\nElectronic safe"} className={inputClass} />
+        </Field>
 
         <Field
           label="Category"
@@ -84,12 +106,12 @@ export default function NewRoomTypeForm() {
           <textarea name="description" rows={3} className={inputClass} />
         </Field>
 
-        <label className="flex items-center gap-2 text-xs text-[#5a5854]">
+        <label className="flex items-center gap-2 text-xs text-slate-700">
           <input
             type="checkbox"
             name="is_active"
             defaultChecked
-            className="accent-[#a88956] w-4 h-4"
+            className="accent-yellow-500 w-4 h-4"
           />
           <span>Show on the website straight away</span>
         </label>

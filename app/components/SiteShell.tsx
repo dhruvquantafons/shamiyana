@@ -28,9 +28,17 @@ export function useBooking() {
 /** Shared chrome for every public page: header, footer, reservation panel. */
 export default function SiteShell({
   rooms,
+  bestRateMessage,
+  languages,
+  defaultLanguage,
   children,
 }: {
   rooms: RoomType[];
+  /** The hotel's own best-rate wording, from Settings (SOW Module 17). */
+  bestRateMessage: string;
+  /** Languages the property offers on the portal, and the one to open in. */
+  languages: string[];
+  defaultLanguage: string;
   children: React.ReactNode;
 }) {
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -55,6 +63,9 @@ export default function SiteShell({
             onClose={() => setBookingOpen(false)}
             roomTypes={rooms}
             preselectedRoom={preselectedRoom}
+            bestRateMessage={bestRateMessage}
+            languages={languages}
+            defaultLanguage={defaultLanguage}
           />
         )}
       </div>

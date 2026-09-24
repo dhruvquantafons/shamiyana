@@ -1,289 +1,301 @@
 import Link from "next/link";
-import { ArrowRight, AlertTriangle, LogIn, LogOut, TrendingUp } from "lucide-react";
+import { AlertTriangle, LogIn, LogOut } from "lucide-react";
 import { createClient } from "../../lib/supabase/server";
-import { requireStaff } from "../../lib/auth";
-import type { Booking, Room, RoomStatus } from "../../lib/types";
-import { OCCUPYING_STATUSES, ROOM_STATUS_LABELS } from "../../lib/types";
-import { todayIso, monthStartOf, isoPlusDays } from "../../lib/dates";
-import {
-  PageHeader,
-  Card,
-  StatCard,
-  StatusPill,
-  EmptyState,
-  fmtDate,
-  fmtMoney,
-  nightsBetween,
-  secondaryButtonClass,
-} from "../components/ui";
+import { requireSession } from "../../lib/auth";
+import { can } from "../../lib/permissions";
+import { getSettings } from "../../lib/settings";
+import type { Booking, Room } from "../../lib/types";
+import { OCCUPYING_STATUSES, roomBoardLabel } from "../../lib/types";
+import { todayIn, minutesSince, addDays } from "../../lib/dates";
+import { kpisFrom, reportByKind, resolveRange, type DailyRow } from "../../lib/reports";
+import { runReport } from "../../lib/report-data";
+import LiveRefresh from "../components/LiveRefresh";
+import { PageHeader, Card, StatCard, StatusPill, fmtDate, fmtMoney } from "../components/ui";
+import TapeChart from "../components/TapeChart";
 
-const ROOM_STATUS_TONE: Record<RoomStatus, string> = {
-  available: "text-emerald-700",
-  occupied: "text-blue-700",
-  maintenance: "text-amber-700",
-  out_of_service: "text-rose-700",
+const BOARD_TONE: Record<string, string> = {
+  "Vacant Clean": "bg-emerald-500",
+  "Vacant Dirty": "bg-amber-500",
+  Occupied: "bg-blue-500",
+  "Out of Order": "bg-rose-500",
+  "Out of Service": "bg-slate-400",
 };
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ denied?: string }>;
-}) {
-  const staff = await requireStaff();
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+  const session = await requireSession();
   const { denied } = await searchParams;
   const supabase = await createClient();
+  const settings = await getSettings();
+  const today = todayIn(settings.timezone);
+  const seesBookings = can(session, "bookings.view") || can(session, "frontdesk.view");
+  const seesRevenue = can(session, "reports.financial");
+  const canCreate = can(session, "bookings.create");
 
-  const now = new Date();
-  const today = todayIso();
-  const monthStart = monthStartOf(today);
-  const weekAhead = isoPlusDays(7, now);
+  const tapeStart = addDays(today, -1);
+  const tapeDays = 14;
+  const tapeEnd = addDays(tapeStart, tapeDays);
+
+  const todayKpis = seesRevenue
+    ? kpisFrom(
+        ((await runReport(supabase, reportByKind("daily_revenue")!, resolveRange("today", today))).rows ??
+          []) as unknown as DailyRow[],
+        Number(settings.monthly_operating_cost),
+      )
+    : null;
 
   const [
-    newCount,
+    tentative,
+    waitlisted,
     arrivals,
     departures,
     inHouse,
-    recent,
-    rooms,
     occupied,
-    monthBookings,
-    upcoming,
+    rooms,
     unassigned,
+    openRequests,
+    hkOpen,
+    mtOpen,
+    leavePending,
+    tapeRooms,
+    tapeTypes,
+    tapeBookings,
+    tapeBlocks,
   ] = await Promise.all([
-    supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "new"),
-    // Today's arrivals, listed rather than just counted.
+    supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "tentative"),
+    supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "waitlisted"),
     supabase
       .from("bookings")
-      .select("*, guests(id, full_name, email, phone), room_types(id, name), rooms(id, room_number)")
+      .select("*, guests(id, full_name), rooms(id, room_number)")
       .eq("check_in", today)
-      .in("status", ["new", "confirmed"])
+      .in("status", ["tentative", "confirmed"])
       .order("created_at"),
     supabase
       .from("bookings")
-      .select("*, guests(id, full_name, email, phone), rooms(id, room_number)")
+      .select("*, guests(id, full_name), rooms(id, room_number)")
       .eq("check_out", today)
       .eq("status", "checked_in")
       .order("created_at"),
     supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "checked_in"),
     supabase
       .from("bookings")
-      .select("*, guests(id, full_name, email, phone), room_types(id, name)")
-      .order("created_at", { ascending: false })
-      .limit(6),
-    supabase.from("rooms").select("id, status"),
-    supabase
-      .from("bookings")
       .select("rooms_count")
       .lte("check_in", today)
       .gt("check_out", today)
       .in("status", OCCUPYING_STATUSES),
-    // Revenue and volume for the month so far.
-    supabase
-      .from("bookings")
-      .select("total_amount")
-      .gte("check_in", monthStart)
-      .not("status", "in", "(cancelled,no_show)"),
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .gt("check_in", today)
-      .lte("check_in", weekAhead)
-      .in("status", ["new", "confirmed"]),
+    supabase.from("rooms").select("id, status, housekeeping_status"),
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .is("room_id", null)
+      .lte("check_in", today)
       .in("status", ["confirmed", "checked_in"]),
+    supabase.from("guest_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase
+      .from("housekeeping_tasks")
+      .select("status, started_at, target_minutes")
+      .lte("task_date", today)
+      .in("status", ["in_progress", "cleaned"]),
+    supabase
+      .from("maintenance_tickets")
+      .select("priority, due_at, assigned_to")
+      .in("status", ["open", "in_progress", "on_hold"]),
+    supabase.from("leave_requests").select("staff_id").eq("status", "pending").neq("staff_id", session.staff.id),
+    supabase.from("rooms").select("*").order("room_number"),
+    supabase.from("room_types").select("*").order("sort_order"),
+    supabase
+      .from("bookings")
+      .select("id, reference, contact_name, check_in, check_out, status, room_id, room_type_id, rooms_count, is_vip")
+      .in("status", ["tentative", "confirmed", "checked_in", "checked_out"])
+      .lt("check_in", tapeEnd)
+      .gt("check_out", tapeStart),
+    supabase.from("room_blocks").select("*").is("released_at", null).lt("start_date", tapeEnd),
   ]);
 
   const arrivalList = (arrivals.data ?? []) as Booking[];
   const departureList = (departures.data ?? []) as Booking[];
-  const recentBookings = (recent.data ?? []) as Booking[];
-  const roomList = (rooms.data ?? []) as Pick<Room, "id" | "status">[];
-
-  const sellableRooms = roomList.filter((r) => r.status !== "out_of_service").length;
-  const roomsCommitted = (occupied.data ?? []).reduce(
-    (sum, b) => sum + ((b as { rooms_count: number }).rooms_count ?? 0),
-    0,
-  );
-  const occupancyRate =
-    sellableRooms > 0 ? Math.round((roomsCommitted / sellableRooms) * 100) : null;
-
-  const monthRows = (monthBookings.data ?? []) as { total_amount: number | null }[];
-  const monthRevenue = monthRows.reduce((sum, b) => sum + Number(b.total_amount ?? 0), 0);
-
+  const roomList = (rooms.data ?? []) as Pick<Room, "id" | "status" | "housekeeping_status">[];
+  const sellable = roomList.filter((r) => r.status !== "out_of_service" && r.status !== "out_of_order").length;
+  const committed = (occupied.data ?? []).reduce((s, b) => s + Number((b as { rooms_count: number }).rooms_count), 0);
+  const occupancy = sellable > 0 ? Math.round((committed / sellable) * 100) : null;
   const statusCounts = roomList.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] ?? 0) + 1;
+    const label = roomBoardLabel(r);
+    acc[label] = (acc[label] ?? 0) + 1;
     return acc;
   }, {});
 
-  const monthLabel = new Date(today + "T00:00:00").toLocaleDateString("en-IN", {
-    month: "long",
-  });
+  const alerts: { text: string; href: string }[] = [];
+  if (settings.business_date < today && can(session, "frontdesk.night_audit")) {
+    alerts.push({ text: `Night audit has not closed ${fmtDate(settings.business_date)}.`, href: "/admin/night-audit" });
+  }
+  if ((unassigned.count ?? 0) > 0) {
+    alerts.push({ text: `${unassigned.count} arriving or in-house booking(s) have no room assigned.`, href: "/admin/front-desk" });
+  }
+  if ((tentative.count ?? 0) > 0) {
+    alerts.push({ text: `${tentative.count} tentative booking(s) waiting to be confirmed.`, href: "/admin/bookings?status=tentative" });
+  }
+  if ((waitlisted.count ?? 0) > 0) {
+    alerts.push({ text: `${waitlisted.count} guest(s) on the waitlist.`, href: "/admin/bookings?status=waitlisted" });
+  }
+  const hkTasks = (hkOpen.data ?? []) as { status: string; started_at: string | null; target_minutes: number }[];
+  const toInspect = hkTasks.filter((t) => t.status === "cleaned").length;
+  const overdue = hkTasks.filter(
+    (t) => t.status === "in_progress" && t.started_at && minutesSince(t.started_at) > t.target_minutes,
+  ).length;
+  if (overdue > 0 && can(session, "housekeeping.assign")) {
+    alerts.push({ text: `${overdue} room clean(s) over the turnaround target.`, href: "/admin/housekeeping" });
+  }
+  if (toInspect > 0 && can(session, "housekeeping.inspect")) {
+    alerts.push({ text: `${toInspect} room(s) waiting for inspection.`, href: "/admin/housekeeping" });
+  }
+  if ((openRequests.count ?? 0) > 0) {
+    alerts.push({ text: `${openRequests.count} open guest request(s).`, href: "/admin/front-desk" });
+  }
+  if (can(session, "guests.view")) {
+    const { data: inHouseGuests } = await supabase
+      .from("bookings")
+      .select("guests(date_of_birth, anniversary)")
+      .eq("status", "checked_in")
+      .not("guest_id", "is", null);
+    const md = today.slice(5);
+    const celebrating = (inHouseGuests ?? []).filter((b) => {
+      const g = b.guests as unknown as { date_of_birth: string | null; anniversary: string | null } | null;
+      return g?.date_of_birth?.slice(5) === md || g?.anniversary?.slice(5) === md;
+    }).length;
+    if (celebrating) {
+      alerts.push({ text: `${celebrating} in-house guest(s) celebrating a birthday or anniversary today.`, href: "/admin/guests/occasions" });
+    }
+  }
+  const tickets = (mtOpen.data ?? []) as { priority: string; due_at: string; assigned_to: string | null }[];
+  if (can(session, "maintenance.manage") || can(session, "maintenance.work")) {
+    const urgent = tickets.filter((t) => t.priority === "urgent").length;
+    const late = tickets.filter((t) => minutesSince(t.due_at) > 0).length;
+    const mine = tickets.filter((t) => t.assigned_to === session.staff.id).length;
+    if (urgent) alerts.push({ text: `${urgent} urgent maintenance ticket(s) open.`, href: "/admin/maintenance?priority=urgent" });
+    if (late) alerts.push({ text: `${late} maintenance ticket(s) past their resolution target.`, href: "/admin/maintenance" });
+    if (mine && !can(session, "maintenance.manage")) {
+      alerts.push({ text: `${mine} maintenance ticket(s) assigned to you.`, href: "/admin/maintenance/mine" });
+    }
+  }
+  if (can(session, "hr.approve_leave") && leavePending.data?.length) {
+    alerts.push({ text: `${leavePending.data.length} leave request(s) waiting for approval.`, href: "/admin/hr/leave" });
+  }
 
   return (
     <>
+      <LiveRefresh tables={["bookings", "rooms", "guest_requests", "maintenance_tickets"]} />
       <PageHeader
-        title={`Good day, ${staff.full_name.split(" ")[0] || "there"}`}
-        description={now.toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })}
+        title={`Good day, ${session.staff.full_name.split(" ")[0] || "there"}`}
+        description={`${fmtDate(today)} · business date ${fmtDate(settings.business_date)}`}
       />
 
       {denied && (
-        <div className="mb-6 flex items-start gap-2.5 text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-3 py-2.5">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-          <span>That section is restricted to administrators.</span>
+        <div className="mb-6 flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-md px-3.5 py-2.5">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          Your role does not include that section.
         </div>
       )}
 
-      {/* Things needing attention */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard
-          label="New requests"
-          value={newCount.count ?? 0}
-          href="/admin/bookings?status=new"
-          hint="Awaiting a reply"
-        />
-        <StatCard label="Arriving today" value={arrivalList.length} hint="To check in" />
-        <StatCard label="Departing today" value={departureList.length} hint="To check out" />
-        <StatCard
-          label="In house"
-          value={inHouse.count ?? 0}
-          href="/admin/bookings?status=checked_in"
-          hint="Currently staying"
-        />
-      </div>
-
-      {/* The shape of the business */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label="Occupancy today"
-          value={occupancyRate === null ? "—" : `${occupancyRate}%`}
-          href="/admin/rooms"
-          hint={
-            sellableRooms > 0
-              ? `${roomsCommitted} of ${sellableRooms} rooms`
-              : "Add rooms to inventory"
-          }
-        />
-        <StatCard
-          label="Rooms free now"
-          value={sellableRooms > 0 ? Math.max(0, sellableRooms - roomsCommitted) : "—"}
-          href="/admin/rooms"
-        />
-        <StatCard
-          label={`${monthLabel} revenue`}
-          value={fmtMoney(monthRevenue)}
-          hint={`${monthRows.length} booking(s) this month`}
-        />
-        <StatCard
-          label="Next 7 days"
-          value={upcoming.count ?? 0}
-          href="/admin/bookings"
-          hint="Arrivals booked"
-        />
-      </div>
-
-      {(unassigned.count ?? 0) > 0 && (
-        <Link
-          href="/admin/bookings?status=confirmed"
-          className="flex items-start gap-2.5 text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-4 py-3 mb-8 hover:border-amber-300 transition-colors"
-        >
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-          <span>
-            <strong className="font-medium">{unassigned.count}</strong> confirmed or in-house
-            booking(s) have no room assigned. A room must be assigned before check-in marks
-            it occupied.
-          </span>
-        </Link>
+      {alerts.length > 0 && (
+        <Card className="mb-6 divide-y divide-slate-100">
+          {alerts.map((a) => (
+            <Link key={a.text} href={a.href} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              {a.text}
+            </Link>
+          ))}
+        </Card>
       )}
 
-      {/* Today's movements */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <MovementList
-          title="Arrivals today"
-          icon={<LogIn className="w-4 h-4 text-emerald-600" />}
-          bookings={arrivalList}
-          empty="No arrivals scheduled for today."
-          showRoom
-        />
-        <MovementList
-          title="Departures today"
-          icon={<LogOut className="w-4 h-4 text-blue-600" />}
-          bookings={departureList}
-          empty="No departures scheduled for today."
-          showRoom
-        />
-      </div>
-
-      {/* Room status breakdown */}
-      {roomList.length > 0 && (
-        <Card className="p-5 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-[#a88956]" />
-            <h2 className="font-serif text-lg text-[#1c1b1a] font-medium">Room status</h2>
+      {seesBookings && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Arriving today" value={arrivalList.length} href="/admin/front-desk" />
+            <StatCard label="Departing today" value={departureList.length} href="/admin/front-desk" />
+            <StatCard label="In house" value={inHouse.count ?? 0} href="/admin/front-desk" />
+            <StatCard
+              label="Occupancy tonight"
+              value={occupancy === null ? "—" : `${occupancy}%`}
+              hint={sellable ? `${committed} of ${sellable} rooms` : "Add rooms to inventory"}
+              href="/admin/rooms"
+            />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {(Object.keys(ROOM_STATUS_LABELS) as RoomStatus[]).map((status) => (
-              <div key={status}>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-[#9a9490] font-semibold">
-                  {ROOM_STATUS_LABELS[status]}
-                </p>
-                <p
-                  className={`font-serif text-2xl font-medium mt-1 ${ROOM_STATUS_TONE[status]}`}
-                >
-                  {statusCounts[status] ?? 0}
-                </p>
+
+          {todayKpis && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <StatCard
+                label="ADR today"
+                value={fmtMoney(todayKpis.adr)}
+                hint="Room revenue ÷ rooms sold"
+                href="/admin/reports"
+              />
+              <StatCard
+                label="RevPAR today"
+                value={fmtMoney(todayKpis.revpar)}
+                hint="Room revenue ÷ rooms available"
+                href="/admin/reports"
+              />
+              <StatCard
+                label="Revenue today"
+                value={fmtMoney(todayKpis.totalRevenue)}
+                hint="Including tax"
+                href="/admin/reports/financial"
+              />
+              <StatCard
+                label="GOPPAR today"
+                value={todayKpis.goppar === null ? "—" : fmtMoney(todayKpis.goppar)}
+                hint={todayKpis.goppar === null ? "Set a monthly operating cost" : "After operating cost"}
+                href="/admin/reports"
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <MovementList title="Arrivals" icon={<LogIn className="w-4 h-4 text-emerald-600" />} bookings={arrivalList} empty="No arrivals today." />
+            <MovementList title="Departures" icon={<LogOut className="w-4 h-4 text-blue-600" />} bookings={departureList} empty="No departures today." />
+          </div>
+
+          {(tapeRooms.data?.length ?? 0) > 0 && (
+            <Card className="mb-6 overflow-x-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-slate-900">Tape chart</h2>
+                <Link href="/admin/tape-chart" className="text-sm text-yellow-800 hover:text-yellow-900">
+                  Full tape chart →
+                </Link>
+              </div>
+              <TapeChart
+                rooms={tapeRooms.data ?? []}
+                roomTypes={tapeTypes.data ?? []}
+                bookings={(tapeBookings.data ?? []) as unknown as Booking[]}
+                blocks={tapeBlocks.data ?? []}
+                start={tapeStart}
+                days={tapeDays}
+                today={today}
+                canCreate={canCreate}
+              />
+            </Card>
+          )}
+        </>
+      )}
+
+      {roomList.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-900">Room status</h2>
+            <Link href="/admin/rooms" className="text-sm text-yellow-800 hover:text-yellow-900">
+              Room board →
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-x-8 gap-y-3">
+            {Object.keys(BOARD_TONE).map((label) => (
+              <div key={label} className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${BOARD_TONE[label]}`} />
+                <span className="text-sm text-slate-600">{label}</span>
+                <span className="text-sm font-semibold text-slate-900">{statusCounts[label] ?? 0}</span>
               </div>
             ))}
           </div>
         </Card>
       )}
-
-      {/* Latest bookings */}
-      <Card>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0ece5]">
-          <h2 className="font-serif text-lg text-[#1c1b1a] font-medium">Latest bookings</h2>
-          <Link href="/admin/bookings" className={secondaryButtonClass}>
-            <span className="flex items-center gap-1.5">
-              View all <ArrowRight className="w-3 h-3" />
-            </span>
-          </Link>
-        </div>
-
-        {recentBookings.length === 0 ? (
-          <EmptyState message="No bookings yet. They will appear here as requests arrive." />
-        ) : (
-          <ul className="divide-y divide-[#f0ece5]">
-            {recentBookings.map((b) => (
-              <li key={b.id}>
-                <Link
-                  href={`/admin/bookings/${b.id}`}
-                  className="flex flex-wrap items-center gap-3 px-5 py-3.5 hover:bg-[#faf9f6] transition-colors"
-                >
-                  <div className="flex-1 min-w-[180px]">
-                    <p className="text-sm font-medium text-[#1c1b1a]">
-                      {b.guests?.full_name || b.contact_name || "Unnamed guest"}
-                    </p>
-                    <p className="text-[11px] text-[#9a9490] font-mono">{b.reference}</p>
-                  </div>
-                  <p className="text-xs text-[#5a5854] whitespace-nowrap">
-                    {fmtDate(b.check_in)} → {fmtDate(b.check_out)}
-                    <span className="block text-[11px] text-[#9a9490]">
-                      {nightsBetween(b.check_in, b.check_out)} night(s)
-                    </span>
-                  </p>
-                  <StatusPill status={b.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </>
   );
 }
@@ -293,51 +305,37 @@ function MovementList({
   icon,
   bookings,
   empty,
-  showRoom,
 }: {
   title: string;
   icon: React.ReactNode;
   bookings: Booking[];
   empty: string;
-  showRoom?: boolean;
 }) {
   return (
     <Card>
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#f0ece5]">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
         {icon}
-        <h2 className="font-serif text-lg text-[#1c1b1a] font-medium">{title}</h2>
-        <span className="ml-auto text-xs text-[#9a9490]">{bookings.length}</span>
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <span className="ml-auto text-xs text-slate-500">{bookings.length}</span>
       </div>
-
       {bookings.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-[#9a9490] font-light text-center">{empty}</p>
+        <p className="px-4 py-8 text-sm text-slate-500 text-center">{empty}</p>
       ) : (
-        <ul className="divide-y divide-[#f0ece5]">
+        <ul className="divide-y divide-slate-100">
           {bookings.map((b) => (
             <li key={b.id}>
-              <Link
-                href={`/admin/bookings/${b.id}`}
-                className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-[#faf9f6] transition-colors"
-              >
-                <div className="flex-1 min-w-[140px]">
-                  <p className="text-sm font-medium text-[#1c1b1a]">
+              <Link href={`/admin/bookings/${b.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-slate-900 truncate">
                     {b.guests?.full_name || b.contact_name || "Unnamed guest"}
-                  </p>
-                  <p className="text-[11px] text-[#9a9490]">
-                    {b.adults + b.children} guest(s) · {b.rooms_count} room(s)
-                  </p>
-                </div>
-
-                {showRoom && (
-                  <span
-                    className={`text-xs whitespace-nowrap ${
-                      b.rooms?.room_number ? "text-[#5a5854]" : "text-amber-700"
-                    }`}
-                  >
-                    {b.rooms?.room_number ?? "No room"}
                   </span>
-                )}
-
+                  <span className="block text-xs text-slate-500">
+                    {b.adults + b.children} guest(s) · {b.rooms_count} room(s)
+                  </span>
+                </span>
+                <span className={`text-xs ${b.rooms?.room_number ? "text-slate-600" : "text-amber-700"}`}>
+                  {b.rooms?.room_number ?? "No room"}
+                </span>
                 <StatusPill status={b.status} />
               </Link>
             </li>

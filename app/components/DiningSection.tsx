@@ -21,7 +21,7 @@ export default function DiningSection() {
           <div className="relative h-72 sm:h-80 rounded-xl overflow-hidden border border-white/10 shadow-2xl group">
             <Image
               src="/gallery/10.jpg"
-              alt="Dining room laid for service at Hotel Samci Riviera"
+              alt="Dining room laid for service at Hotel Shamiyana"
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover group-hover:scale-[1.06] transition-transform duration-[900ms] ease-out"

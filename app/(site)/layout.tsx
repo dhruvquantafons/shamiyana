@@ -1,4 +1,4 @@
-import { getPublicRates } from "../lib/rates";
+import { getPublicRates, getPortalSettings } from "../lib/rates";
 
 /**
  * Safety net for the public pages.
@@ -23,10 +23,15 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { rooms } = await getPublicRates();
+  const [{ rooms }, settings] = await Promise.all([getPublicRates(), getPortalSettings()]);
 
   return (
-    <SiteShell rooms={rooms}>
+    <SiteShell
+      rooms={rooms}
+      bestRateMessage={settings.bestRateMessage}
+      languages={settings.languages}
+      defaultLanguage={settings.defaultLanguage}
+    >
       {children}
     </SiteShell>
   );

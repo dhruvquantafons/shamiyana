@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Room, RoomType, Booking } from "../../../lib/types";
+import type { Room, RoomType, Booking, RoomBlock } from "../../../lib/types";
 import {
-  todayIso,
   monthStartOf,
   shiftMonth,
   daysInMonth,
@@ -27,17 +26,22 @@ export default function AvailabilityCalendar({
   roomTypes,
   rooms,
   bookings,
+  blocks,
+  today,
   rangeStart,
   rangeEnd,
 }: {
   roomTypes: RoomType[];
   rooms: Room[];
   bookings: Booking[];
+  /** Active blocks; a blocked room is not sellable on the nights it covers. */
+  blocks: Pick<RoomBlock, "room_id" | "start_date" | "end_date">[];
+  /** Today at the hotel, so the highlight does not depend on the viewer's clock. */
+  today: string;
   /** Bounds of the loaded booking window, as yyyy-mm-dd. */
   rangeStart: string;
   rangeEnd: string;
 }) {
-  const today = todayIso();
   const thisMonth = monthStartOf(today);
   const [month, setMonth] = useState(thisMonth);
 
@@ -60,8 +64,11 @@ export default function AvailabilityCalendar({
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const usableRooms = rooms.filter((r) => r.status !== "out_of_service");
-  const capacity = usableRooms.length;
+  const blockedOn = (day: string, roomId: string) =>
+    blocks.some((b) => b.room_id === roomId && b.start_date <= day && (b.end_date === null || b.end_date >= day));
+  const capacityOn = (day: string, typeId?: string) =>
+    rooms.filter((r) => (typeId ? r.room_type_id === typeId : true) && !blockedOn(day, r.id)).length;
+  const capacity = rooms.length;
 
   const bookedOn = (day: string, typeId?: string) =>
     bookings
@@ -80,11 +87,11 @@ export default function AvailabilityCalendar({
 
   return (
     <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-[#f0ece5]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
         <div>
-          <h2 className="font-serif text-lg text-[#1c1b1a] font-medium">Availability</h2>
-          <p className="text-xs text-[#7a7771] font-light mt-0.5">
-            Rooms free per night. Counts new, confirmed and checked-in bookings.
+          <h2 className="text-base font-semibold text-slate-900">Availability</h2>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Sellable rooms free per night: tentative, confirmed and in-house stays count; blocked rooms are excluded.
           </p>
         </div>
 
@@ -105,14 +112,14 @@ export default function AvailabilityCalendar({
               onClick={() => setMonth(shiftMonth(month, -1))}
               disabled={!canGoBack}
               aria-label="Previous month"
-              className="p-1.5 rounded-lg border border-[#e5e0d8] text-[#5a5854] hover:border-[#a88956] hover:text-[#a88956] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-[#e5e0d8] disabled:hover:text-[#5a5854]"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-700 hover:border-yellow-500 hover:text-yellow-700 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-700"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
             <span
               aria-live="polite"
-              className="font-serif text-base text-[#1c1b1a] font-medium min-w-[150px] text-center"
+              className="text-sm font-semibold text-slate-900 min-w-[150px] text-center"
             >
               {monthLabel}
             </span>
@@ -122,7 +129,7 @@ export default function AvailabilityCalendar({
               onClick={() => setMonth(shiftMonth(month, 1))}
               disabled={!canGoForward}
               aria-label="Next month"
-              className="p-1.5 rounded-lg border border-[#e5e0d8] text-[#5a5854] hover:border-[#a88956] hover:text-[#a88956] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-[#e5e0d8] disabled:hover:text-[#5a5854]"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-700 hover:border-yellow-500 hover:text-yellow-700 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-700"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -131,7 +138,7 @@ export default function AvailabilityCalendar({
       </div>
 
       {capacity === 0 ? (
-        <p className="px-5 py-10 text-sm text-[#9a9490] font-light text-center">
+        <p className="px-5 py-10 text-sm text-slate-500 text-center">
           Add rooms to your inventory to see availability.
         </p>
       ) : (
@@ -141,7 +148,7 @@ export default function AvailabilityCalendar({
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div
                   key={d}
-                  className="text-center text-[10px] uppercase tracking-wider text-[#9a9490] font-semibold py-1"
+                  className="text-center text-xs text-slate-500 font-semibold py-1"
                 >
                   {d}
                 </div>
@@ -153,28 +160,29 @@ export default function AvailabilityCalendar({
                 if (!cell) return <div key={`pad-${i}`} />;
 
                 const booked = bookedOn(cell.iso);
-                const free = capacity - booked;
+                const dayCapacity = capacityOn(cell.iso);
+                const free = dayCapacity - booked;
                 const isToday = cell.iso === today;
                 const isPast = cell.iso < today;
 
                 const tone =
                   free <= 0
                     ? "bg-rose-50 border-rose-200"
-                    : free <= Math.max(1, Math.floor(capacity * 0.2))
+                    : free <= Math.max(1, Math.floor(dayCapacity * 0.2))
                       ? "bg-amber-50 border-amber-200"
-                      : "bg-white border-[#f0ece5]";
+                      : "bg-white border-slate-100";
 
                 return (
                   <div
                     key={cell.iso}
-                    title={`${cell.iso} — ${Math.max(0, free)} of ${capacity} free`}
+                    title={`${cell.iso} — ${Math.max(0, free)} of ${dayCapacity} sellable free${dayCapacity < capacity ? ` (${capacity - dayCapacity} blocked)` : ""}`}
                     className={`rounded-lg border p-1.5 sm:p-2 min-h-[64px] sm:min-h-[80px] flex flex-col transition-colors ${tone} ${
                       isPast ? "opacity-45" : ""
-                    } ${isToday ? "ring-2 ring-[#a88956] ring-offset-1" : ""}`}
+                    } ${isToday ? "ring-2 ring-yellow-500 ring-offset-1" : ""}`}
                   >
                     <span
                       className={`text-[11px] font-medium ${
-                        isToday ? "text-[#a88956]" : "text-[#5a5854]"
+                        isToday ? "text-yellow-700" : "text-slate-700"
                       }`}
                     >
                       {cell.day}
@@ -186,13 +194,13 @@ export default function AvailabilityCalendar({
                           Full
                         </span>
                       ) : (
-                        <span className="block text-sm sm:text-base font-serif font-medium text-[#1c1b1a] leading-none">
+                        <span className="block text-sm sm:text-base font-medium text-slate-900 leading-none">
                           {free}
-                          <span className="text-[10px] text-[#9a9490] font-sans ml-0.5">free</span>
+                          <span className="text-[10px] text-slate-500 font-sans ml-0.5">free</span>
                         </span>
                       )}
                       {booked > 0 && (
-                        <span className="block text-[9px] text-[#9a9490] mt-0.5">
+                        <span className="block text-[9px] text-slate-500 mt-0.5">
                           {booked} booked
                         </span>
                       )}
@@ -205,22 +213,20 @@ export default function AvailabilityCalendar({
 
           {roomTypes.length > 1 && (
             <div className="px-5 pb-5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-[#9a9490] font-semibold mb-2">
+              <p className="text-xs font-medium text-slate-500 mb-2">
                 By room type, today
               </p>
               <div className="flex flex-wrap gap-2">
                 {roomTypes.map((rt) => {
-                  const typeCapacity = usableRooms.filter(
-                    (r) => r.room_type_id === rt.id,
-                  ).length;
+                  const typeCapacity = capacityOn(today, rt.id);
                   const free = typeCapacity - bookedOn(today, rt.id);
                   return (
                     <span
                       key={rt.id}
-                      className="text-xs px-3 py-1.5 rounded-full border border-[#e5e0d8] bg-white text-[#5a5854]"
+                      className="text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700"
                     >
                       {rt.name}:{" "}
-                      <strong className="font-medium text-[#1c1b1a]">
+                      <strong className="font-medium text-slate-900">
                         {typeCapacity === 0
                           ? "no rooms"
                           : `${Math.max(0, free)} of ${typeCapacity}`}

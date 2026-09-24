@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { createClient } from "../../../lib/supabase/server";
-import { requireBookingsAccess } from "../../../lib/auth";
+import { requirePermission } from "../../../lib/auth";
+import { can } from "../../../lib/permissions";
 import type { Booking, BookingStatus } from "../../../lib/types";
 import { BOOKING_STATUS_LABELS, BOOKING_SOURCE_LABELS } from "../../../lib/types";
 import {
@@ -32,20 +33,21 @@ export default async function BookingsPage({
 }: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  await requireBookingsAccess();
+  const session = await requirePermission("bookings.view");
   const { status = "all", q = "" } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase
     .from("bookings")
-    .select("*, guests(id, full_name, email, phone), room_types(id, name), rooms(id, room_number)")
+    .select("*, guests(id, full_name, email, phone), room_types(id, name), rooms(id, room_number), rate_plans(id, code, name)")
     .order("created_at", { ascending: false })
     .limit(200);
 
   if (status !== "all") query = query.eq("status", status);
 
   if (q) {
-    const term = `%${q}%`;
+    // Commas and parentheses would break PostgREST's or() syntax.
+    const term = `%${q.replace(/[%,()]/g, "")}%`;
     const clauses = [
       `reference.ilike.${term}`,
       `contact_name.ilike.${term}`,
@@ -76,11 +78,13 @@ export default async function BookingsPage({
         title="Bookings"
         description="Every reservation request and confirmed stay."
         action={
-          <Link href="/admin/bookings/new" className={buttonClass}>
-            <span className="flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5" /> New booking
-            </span>
-          </Link>
+          can(session, "bookings.create") ? (
+            <Link href="/admin/bookings/new" className={buttonClass}>
+              <span className="flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> New booking
+              </span>
+            </Link>
+          ) : null
         }
       />
 
@@ -98,8 +102,8 @@ export default async function BookingsPage({
               href={href}
               className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
                 active
-                  ? "bg-[#a88956] text-white border-[#a88956] font-medium"
-                  : "bg-white text-[#5a5854] border-[#e5e0d8] hover:border-[#a88956]"
+                  ? "bg-yellow-400 text-slate-900 border-yellow-500 font-medium"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-yellow-500"
               }`}
             >
               {f.label}
@@ -112,7 +116,7 @@ export default async function BookingsPage({
       <form className="flex gap-2 mb-5" action="/admin/bookings">
         {status !== "all" && <input type="hidden" name="status" value={status} />}
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#9a9490] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             name="q"
             defaultValue={q}
@@ -134,7 +138,7 @@ export default async function BookingsPage({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-[#9a9490] border-b border-[#f0ece5]">
+                <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-100">
                   <th className="px-5 py-3 font-semibold">Guest</th>
                   <th className="px-5 py-3 font-semibold">Stay</th>
                   <th className="px-5 py-3 font-semibold">Room</th>
@@ -144,43 +148,45 @@ export default async function BookingsPage({
                   <th className="px-5 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f0ece5]">
+              <tbody className="divide-y divide-slate-100">
                 {bookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-[#faf9f6] transition-colors">
+                  <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3">
                       <Link href={`/admin/bookings/${b.id}`} className="block">
-                        <span className="font-medium text-[#1c1b1a]">
+                        <span className="font-medium text-slate-900">
                           {b.guests?.full_name || b.contact_name || "Unnamed guest"}
                         </span>
-                        <span className="block text-[11px] text-[#9a9490] font-mono">
+                        <span className="block text-[11px] text-slate-500 font-mono">
                           {b.reference}
                         </span>
                       </Link>
                     </td>
-                    <td className="px-5 py-3 whitespace-nowrap text-[#5a5854]">
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-700">
                       {fmtDate(b.check_in)} → {fmtDate(b.check_out)}
-                      <span className="block text-[11px] text-[#9a9490]">
+                      <span className="block text-[11px] text-slate-500">
                         {nightsBetween(b.check_in, b.check_out)} night(s), {b.adults + b.children} guest(s)
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-[#5a5854]">
+                    <td className="px-5 py-3 text-slate-700">
+                      {b.rooms_count > 1 ? `${b.rooms_count} × ` : ""}
                       {b.room_types?.name ?? "—"}
+                      {b.rate_plans && <span className="block text-[11px] text-slate-500">{b.rate_plans.code}</span>}
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       {b.rooms?.room_number ? (
-                        <span className="inline-block px-2.5 py-1 rounded-md bg-[#f2ece2] border border-[#e5d9c6] text-[#8f7343] font-medium text-xs">
+                        <span className="inline-block px-2.5 py-1 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium text-xs">
                           {b.rooms.room_number}
                         </span>
                       ) : NEEDS_ROOM.includes(b.status) ? (
                         <span className="text-xs text-amber-700">Unassigned</span>
                       ) : (
-                        <span className="text-[#c9c4bc]">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-[#5a5854] whitespace-nowrap">
+                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">
                       {BOOKING_SOURCE_LABELS[b.source]}
                     </td>
-                    <td className="px-5 py-3 text-[#5a5854] whitespace-nowrap">
+                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">
                       {fmtMoney(b.total_amount)}
                     </td>
                     <td className="px-5 py-3">

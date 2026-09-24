@@ -15,26 +15,25 @@ export default async function LoginPage() {
   if (!hasSupabaseConfig()) return <SetupNotice />;
 
   return (
-    <main className="min-h-screen bg-[#141312] flex items-center justify-center p-4">
+    <main className="admin-theme min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="font-serif text-2xl text-[#e6d7c3] font-medium tracking-[0.18em] uppercase">
-            Samci Riviera
-          </p>
-          <p className="text-[10px] tracking-[0.3em] text-[#9a9490] uppercase mt-1">
-            Reservations Desk
-          </p>
+        <div className="text-center mb-6">
+          <span className="inline-flex w-10 h-10 rounded-lg bg-yellow-400 text-slate-900 text-sm font-semibold items-center justify-center">
+            SR
+          </span>
+          <p className="text-lg font-semibold text-slate-900 mt-3">Shamiyana</p>
+          <p className="text-sm text-slate-500">Sign in to property management</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#e5e0d8] p-6 shadow-2xl">
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <Suspense
-            fallback={<p className="text-sm text-[#9a9490] text-center py-8">Loading…</p>}
+            fallback={<p className="text-sm text-slate-500 text-center py-8">Loading…</p>}
           >
             <LoginForm />
           </Suspense>
         </div>
 
-        <p className="text-center text-[11px] text-[#6d6862] mt-6 font-light">
+        <p className="text-center text-[11px] text-slate-400 mt-6">
           Staff access only. Ask an administrator for an account.
         </p>
       </div>
