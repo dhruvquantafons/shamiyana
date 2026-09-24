@@ -101,7 +101,7 @@ create table if not exists event_spaces (
 -- The hotel markets one hall, used for conferences, residential conferences
 -- and banquets. Rates are placeholders the hotel must set before quoting.
 insert into event_spaces (code, name, description, area_sqft, tax_rate, sort_order)
-values ('HALL', 'Riviera Conference Hall',
+values ('HALL', 'Shamiyana Conference Hall',
         'Conference and banquet hall, laid out to suit the function.', null, 18, 1)
 on conflict (code) do nothing;
 

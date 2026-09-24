@@ -75,7 +75,7 @@ create table if not exists pos_outlets (
 -- rates are India's usual treatment and must be confirmed with the hotel's
 -- accountant before the first bill.
 insert into pos_outlets (code, name, kind, tax_rate, service_charge_percent, orders_by, sends_kot, is_active, sort_order) values
-  ('RST', 'Samci Restaurant', 'restaurant',   5, 10, 'either', true,  true,  1),
+  ('RST', 'Shamiyana Restaurant', 'restaurant',   5, 10, 'either', true,  true,  1),
   ('BAR', 'Bar',              'bar',         18, 10, 'either', true,  false, 2),
   ('SPA', 'Spa & Wellness',   'spa',         18,  0, 'either', false, false, 3),
   ('SHP', 'Gift Shop',        'gift_shop',   12,  0, 'either', false, false, 4),

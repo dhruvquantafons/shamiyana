@@ -12,7 +12,7 @@ import GuestProfileForm from "./GuestProfileForm";
 
 export const metadata: Metadata = {
   title: "My Bookings",
-  description: "Sign in to view and manage your bookings at Hotel Samci Riviera.",
+  description: "Sign in to view and manage your bookings at Hotel Shamiyana.",
   alternates: { canonical: "/account" },
   robots: { index: false, follow: false },
 };

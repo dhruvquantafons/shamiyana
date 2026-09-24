@@ -249,7 +249,7 @@ create policy properties_insert on properties for insert
  */
 create table if not exists group_settings (
   id                        boolean primary key default true check (id),
-  group_name                text not null default 'Samci Hotels',
+  group_name                text not null default 'Shamiyana Hotels',
   -- Brand standards
   best_rate_message         text not null default '',
   invoice_terms             text not null default '',
@@ -258,7 +258,7 @@ create table if not exists group_settings (
   languages                 text[] not null default '{en}',
   -- Loyalty programme rules
   loyalty_enabled           boolean not null default false,
-  loyalty_program_name      text not null default 'Riviera Rewards',
+  loyalty_program_name      text not null default 'Shamiyana Rewards',
   loyalty_expiry_months     int not null default 24,
   loyalty_min_redeem_points int not null default 500,
   -- Tax template

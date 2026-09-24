@@ -185,7 +185,7 @@ export async function saveLoyaltyProgram(_prev: ActionState, fd: FormData): Prom
     .from("property_settings")
     .update({
       loyalty_enabled: bool(fd, "loyalty_enabled"),
-      loyalty_program_name: str(fd, "loyalty_program_name", 60) || "Riviera Rewards",
+      loyalty_program_name: str(fd, "loyalty_program_name", 60) || "Shamiyana Rewards",
       loyalty_expiry_months: int(fd, "loyalty_expiry_months", 24, 0, 120),
       loyalty_min_redeem_points: int(fd, "loyalty_min_redeem_points", 500, 0, 1_000_000),
     })

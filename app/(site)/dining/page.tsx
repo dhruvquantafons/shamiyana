@@ -5,7 +5,7 @@ import PageHeader from "../../components/PageHeader";
 export const metadata: Metadata = {
   title: "Dining",
   description:
-    "Samci Restaurant serves traditional Kashmiri Wazwan alongside international dishes, with breakfast, Kahwa and in-room dining around the clock.",
+    "Shamiyana Restaurant serves traditional Kashmiri Wazwan alongside international dishes, with breakfast, Kahwa and in-room dining around the clock.",
   alternates: { canonical: "/dining" },
 };
 
@@ -14,7 +14,7 @@ export default function DiningPage() {
     <>
       <PageHeader
         eyebrow="Dining"
-        title="Samci Restaurant"
+        title="Shamiyana Restaurant"
         lead="Kashmiri Wazwan and international favourites, served through the day."
         image="/gallery/10.jpg"
       />

@@ -223,7 +223,7 @@ export default function Sidebar({
     <Link href="/admin" className="flex items-center gap-2.5 px-3 py-1">
       <span className="w-7 h-7 rounded-md bg-yellow-400 text-slate-900 text-xs font-semibold flex items-center justify-center">SR</span>
       <span>
-        <span className="block text-sm font-semibold text-slate-900 leading-tight">Samci Riviera</span>
+        <span className="block text-sm font-semibold text-slate-900 leading-tight">Shamiyana</span>
         <span className="block text-[11px] text-slate-500 leading-tight">Property management</span>
       </span>
     </Link>

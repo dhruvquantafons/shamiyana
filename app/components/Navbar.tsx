@@ -67,7 +67,7 @@ export default function Navbar() {
               scrolled ? "text-[#1c1b1a]" : "text-white"
             }`}
           >
-            SAMCI RIVIERA
+            SHAMIYANA
           </span>
           <span
             className={`text-[8px] sm:text-[9px] tracking-[0.2em] sm:tracking-[0.3em] uppercase -mt-0.5 font-light whitespace-nowrap ${
@@ -153,7 +153,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-amber-500/20">
             <div>
               <div className="font-serif text-2xl font-bold tracking-widest gold-text-gradient">
-                SAMCI RIVIERA
+                SHAMIYANA
               </div>
               <div className="text-[9px] tracking-widest text-amber-200/60 uppercase">
                 Hotel &bull; Srinagar

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Hotel Samci Riviera — admin panel schema
+-- Hotel Shamiyana — admin panel schema
 -- Run this in the Supabase SQL editor (or `supabase db push`) on a new project.
 -- ============================================================================
 

@@ -5,7 +5,7 @@ import { parseTaxSlabs, type TaxSlab } from "./tax";
 
 /** Used when the settings row cannot be read, e.g. before migration 0005. */
 export const DEFAULT_SETTINGS: PropertySettings = {
-  name: "Hotel Samci Riviera",
+  name: "Hotel Shamiyana",
   legal_name: "",
   address: "",
   city: "Srinagar",
@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS: PropertySettings = {
   country: "India",
   postcode: "",
   phone: "0194-3500113",
-  email: "info@hotelsamciriviera.com",
+  email: "info@hotelshamiyana.com",
   gstin: "",
   currency: "INR",
   timezone: "Asia/Kolkata",
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: PropertySettings = {
   multi_currency_enabled: false,
   ar_reminder_days: 7,
   loyalty_enabled: false,
-  loyalty_program_name: "Riviera Rewards",
+  loyalty_program_name: "Shamiyana Rewards",
   loyalty_expiry_months: 24,
   loyalty_min_redeem_points: 500,
   pos_room_charge_limit: 0,

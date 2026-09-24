@@ -43,7 +43,7 @@ import type {
 const space = (s: Partial<EventSpace> = {}): EventSpace => ({
   id: "s1",
   code: "HALL",
-  name: "Riviera Conference Hall",
+  name: "Shamiyana Conference Hall",
   description: "",
   floor: 1,
   area_sqft: null,

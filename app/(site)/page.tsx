@@ -17,7 +17,7 @@ const DESTINATIONS = [
     href: "/dining",
     image: "/gallery/10.jpg",
     eyebrow: "Dining",
-    title: "Samci Restaurant",
+    title: "Shamiyana Restaurant",
     blurb: "Kashmiri Wazwan and international favourites.",
   },
   {

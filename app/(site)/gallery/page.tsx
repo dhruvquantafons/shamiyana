@@ -5,7 +5,7 @@ import PageHeader from "../../components/PageHeader";
 export const metadata: Metadata = {
   title: "Gallery",
   description:
-    "Photographs of Hotel Samci Riviera — rooms and suites, en-suite bathrooms, the reception lobby, and conference spaces in Srinagar.",
+    "Photographs of Hotel Shamiyana — rooms and suites, en-suite bathrooms, the reception lobby, and conference spaces in Srinagar.",
   alternates: { canonical: "/gallery" },
 };
 

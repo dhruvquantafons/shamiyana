@@ -17,7 +17,7 @@ import type { Outlet, PosItem, PosOrderLine, PosPayment } from "../app/lib/types
 const outlet = (o: Partial<Outlet> = {}): Outlet => ({
   id: "o1",
   code: "RST",
-  name: "Samci Restaurant",
+  name: "Shamiyana Restaurant",
   kind: "restaurant",
   tax_rate: 5,
   tax_inclusive: false,

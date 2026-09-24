@@ -247,7 +247,7 @@ export default function BookingWidget({
             </div>
             <div>
               <h3 className="font-serif text-base text-[#e6d7c3] font-medium tracking-wide uppercase">
-                Hotel Samci Riviera
+                Hotel Shamiyana
               </h3>
               <p className="text-[10px] text-[#9a9490] tracking-widest uppercase">
                 Hotel &bull; Srinagar

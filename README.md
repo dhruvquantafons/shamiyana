@@ -1,6 +1,6 @@
-# Hotel Samci Riviera
+# Hotel Shamiyana
 
-The website and property management system (PMS) for **Hotel Samci Riviera**, Srinagar.
+The website and property management system (PMS) for **Hotel Shamiyana**, Srinagar.
 
 - **Public website** (`/`): rooms, dining, gallery and a booking form with live availability and prices.
 - **Guest portal** (`/account`): guests sign in to see their stays, pay a deposit, cancel, and keep their details current.

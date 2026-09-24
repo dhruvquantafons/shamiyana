@@ -63,7 +63,7 @@ export default function AboutSection() {
                 src="/gallery/1.jpg"
                 width={1560}
                 height={1080}
-                alt="Hotel Samci Riviera building exterior and reception entrance in Srinagar"
+                alt="Hotel Shamiyana building exterior and reception entrance in Srinagar"
                 className="w-full h-[340px] sm:h-[520px] object-cover filter contrast-[1.03] group-hover:scale-105 transition-transform duration-700"
               />
 
@@ -72,7 +72,7 @@ export default function AboutSection() {
                 <div>
                   <div className="text-xs uppercase tracking-widest text-[#a88956] font-semibold flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-[#a88956]" />
-                    <span>Hotel Samci Riviera</span>
+                    <span>Hotel Shamiyana</span>
                   </div>
                   <div className="text-sm font-serif text-[#1c1b1a] font-medium mt-0.5">
                     At the bank of the Jhelum River, Srinagar
@@ -93,7 +93,7 @@ export default function AboutSection() {
                 src="/gallery/8.jpg"
                 fill
                 sizes="224px"
-                alt="Reception lobby and front desk at Hotel Samci Riviera"
+                alt="Reception lobby and front desk at Hotel Shamiyana"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -102,7 +102,7 @@ export default function AboutSection() {
           {/* Right Text Content Column */}
           <Reveal delay={120} className="lg:col-span-6 space-y-6">
             <p className="text-[#5a5854] text-sm sm:text-base font-light leading-relaxed tracking-wide">
-              Hotel Samci Riviera is situated at a prime location in the valley of
+              Hotel Shamiyana is situated at a prime location in the valley of
               Kashmir — suited to leisure and corporate travellers alike, and an ideal
               venue for a comfortable stay.
             </p>

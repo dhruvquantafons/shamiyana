@@ -216,7 +216,7 @@ $$;
 
 create table if not exists property_settings (
   id                        boolean primary key default true check (id),
-  name                      text not null default 'Hotel Samci Riviera',
+  name                      text not null default 'Hotel Shamiyana',
   legal_name                text not null default '',
   address                   text not null default '',
   city                      text not null default 'Srinagar',

@@ -1405,7 +1405,7 @@ set role authenticated;
 select all_properties as runs_group_expect_t from staff where id = '00000000-0000-0000-0000-000000000001';
 
 \echo '--- add a second hotel'
-select create_property('DL', 'Samci Dal View', 'Samci') is not null as created_expect_t;
+select create_property('DL', 'Shamiyana Dal View', 'Shamiyana') is not null as created_expect_t;
 
 \echo '--- and the group''s tax template, not an empty one: EXPECT t'
 select tax_label = (select tax_label from group_settings) as tax_pushed_expect_t

@@ -15,7 +15,7 @@ export default function Footer({ rooms }: { rooms: RoomType[] }) {
           <div className="lg:col-span-4 space-y-4">
             <div>
               <span className="font-serif text-3xl font-bold tracking-[0.25em] text-[#e6d7c3] uppercase">
-                SAMCI RIVIERA
+                SHAMIYANA
               </span>
               <div className="text-[10px] tracking-[0.3em] text-slate-400 font-sans uppercase">
                 HOTEL &bull; SRINAGAR
@@ -37,7 +37,7 @@ Warm Kashmiri hospitality on the bank of the Jhelum, 1.5 km from Dal Lake.
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-[#e6d7c3] shrink-0" />
-                <a href="mailto:info@hotelsamciriviera.com" className="hover:text-[#e6d7c3] transition-colors">info@hotelsamciriviera.com</a>
+                <a href="mailto:info@hotelshamiyana.com" className="hover:text-[#e6d7c3] transition-colors">info@hotelshamiyana.com</a>
               </div>
             </div>
           </div>
@@ -65,7 +65,7 @@ Warm Kashmiri hospitality on the bank of the Jhelum, 1.5 km from Dal Lake.
               Hotel
             </h4>
             <ul className="space-y-2 text-xs">
-              <li><Link href="/dining" className="hover:text-[#e6d7c3] transition-colors">Samci Restaurant</Link></li>
+              <li><Link href="/dining" className="hover:text-[#e6d7c3] transition-colors">Shamiyana Restaurant</Link></li>
               <li><Link href="/gallery" className="hover:text-[#e6d7c3] transition-colors">Photo Gallery</Link></li>
               <li><Link href="/about" className="hover:text-[#e6d7c3] transition-colors">Conference &amp; Events</Link></li>
             </ul>
@@ -106,7 +106,7 @@ Seasonal rates and offers, occasionally.
         {/* Bottom Copyright */}
         <div className="mt-10 sm:mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <div>
-            © {new Date().getFullYear()} Hotel Samci Riviera. All rights reserved.
+            © {new Date().getFullYear()} Hotel Shamiyana. All rights reserved.
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <Link href="/privacy" className="hover:text-[#e6d7c3] transition-colors">Privacy Policy</Link>

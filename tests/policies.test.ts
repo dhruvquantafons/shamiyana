@@ -195,7 +195,7 @@ describe("password policy", () => {
   const policy = { minLength: 10, maxAgeDays: 90 };
   it("requires length and mixed character classes", () => {
     expect(passwordProblems("short", policy)).toContain("at least 10 characters");
-    expect(passwordProblems("Riviera#Srinagar2026", policy)).toEqual([]);
+    expect(passwordProblems("Shamiyana#Srinagar2026", policy)).toEqual([]);
     expect(passwordProblems("riviera#srinagar2026", policy)).toContain("an uppercase letter");
     const problems = passwordProblems("Asha#Admin2026", policy, "asha@x.test");
     expect(describePasswordProblems(problems)).toBe(

@@ -225,7 +225,7 @@ export default async function EventSetupPage() {
             <input type="hidden" name="is_active" value="on" />
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Field label="Name">
-                <input name="name" required maxLength={80} className={inputClass} placeholder="Riviera Conference Hall" />
+                <input name="name" required maxLength={80} className={inputClass} placeholder="Shamiyana Conference Hall" />
               </Field>
               <Field label="Code" hint="2 to 8 letters or digits">
                 <input name="code" required maxLength={8} className={inputClass} placeholder="HALL" />

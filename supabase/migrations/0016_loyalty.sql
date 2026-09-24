@@ -49,7 +49,7 @@ on conflict do nothing;
 -- ── Settings ────────────────────────────────────────────────────────────────
 
 alter table property_settings add column if not exists loyalty_enabled boolean not null default false;
-alter table property_settings add column if not exists loyalty_program_name text not null default 'Riviera Rewards';
+alter table property_settings add column if not exists loyalty_program_name text not null default 'Shamiyana Rewards';
 -- Points die this many months after they are earned. Zero means never.
 alter table property_settings add column if not exists loyalty_expiry_months int not null default 24
   check (loyalty_expiry_months between 0 and 120);

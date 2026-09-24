@@ -3,7 +3,7 @@
  * structured data, the sitemap, and the legal pages.
  */
 /** The address this deployment answers on, and the one it puts in links. */
-export const PRODUCTION_URL = "https://www.hotelsamciriviera.com";
+export const PRODUCTION_URL = "https://www.hotelshamiyana.com";
 
 /**
  * Where this deployment thinks it lives.
@@ -21,13 +21,13 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_URL).rep
 export const IS_PRODUCTION_SITE = SITE_URL === PRODUCTION_URL;
 
 export const SITE = {
-  name: "Hotel Samci Riviera",
-  shortName: "Samci Riviera",
+  name: "Hotel Shamiyana",
+  shortName: "Shamiyana",
   tagline: "Luxury Hotel & Dining • Srinagar",
   url: SITE_URL,
   description:
-    "Hotel Samci Riviera is situated at a prime location in Srinagar, on the bank of the Jhelum River and just 1.5 km from Dal Lake and Lal Chowk — with 33 Deluxe Rooms, 03 Royal Suites, 02 Presidential Suites, and versatile conference space.",
-  email: "info@hotelsamciriviera.com",
+    "Hotel Shamiyana is situated at a prime location in Srinagar, on the bank of the Jhelum River and just 1.5 km from Dal Lake and Lal Chowk — with 33 Deluxe Rooms, 03 Royal Suites, 02 Presidential Suites, and versatile conference space.",
+  email: "info@hotelshamiyana.com",
   phones: ["0194-3500113", "+91 90700 90713", "0194-3517164"],
   addressLocality: "Srinagar",
   addressRegion: "Jammu & Kashmir",

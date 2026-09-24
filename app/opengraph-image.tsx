@@ -37,7 +37,7 @@ export default function OpengraphImage() {
             SRINAGAR • KASHMIR
           </div>
           <div style={{ fontSize: 82, fontWeight: 700, letterSpacing: 10, marginTop: 24 }}>
-            SAMCI RIVIERA
+            SHAMIYANA
           </div>
           <div style={{ fontSize: 30, color: "#cfc7ba", marginTop: 20, maxWidth: 820 }}>
             On the bank of the Jhelum River, 1.5 km from Dal Lake

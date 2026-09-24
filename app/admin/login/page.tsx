@@ -21,7 +21,7 @@ export default async function LoginPage() {
           <span className="inline-flex w-10 h-10 rounded-lg bg-yellow-400 text-slate-900 text-sm font-semibold items-center justify-center">
             SR
           </span>
-          <p className="text-lg font-semibold text-slate-900 mt-3">Samci Riviera</p>
+          <p className="text-lg font-semibold text-slate-900 mt-3">Shamiyana</p>
           <p className="text-sm text-slate-500">Sign in to property management</p>
         </div>
 

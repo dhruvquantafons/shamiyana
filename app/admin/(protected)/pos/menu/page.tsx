@@ -146,7 +146,7 @@ export default async function PosMenuPage({
                 <input name="code" required maxLength={6} placeholder="RST" className={`${inputClass} uppercase`} />
               </Field>
               <Field label="Name">
-                <input name="name" required maxLength={80} placeholder="Samci Restaurant" className={inputClass} />
+                <input name="name" required maxLength={80} placeholder="Shamiyana Restaurant" className={inputClass} />
               </Field>
               <Field label="Type">
                 <select name="kind" defaultValue="restaurant" className={inputClass}>

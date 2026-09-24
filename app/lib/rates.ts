@@ -72,7 +72,7 @@ export interface PortalSettings {
 }
 
 const PORTAL_FALLBACK: PortalSettings = {
-  propertyName: "Hotel Samci Riviera",
+  propertyName: "Hotel Shamiyana",
   currency: "INR",
   multiCurrency: false,
   defaultLanguage: "en",
@@ -80,7 +80,7 @@ const PORTAL_FALLBACK: PortalSettings = {
   taxLabel: "Inclusive of taxes",
   bestRateMessage: "",
   phone: "0194-3500113",
-  email: "info@hotelsamciriviera.com",
+  email: "info@hotelshamiyana.com",
 };
 
 export async function getPortalSettings(): Promise<PortalSettings> {
