@@ -36,6 +36,7 @@ import type { Staff } from "../../lib/types";
 import type { Permission } from "../../lib/permissions";
 import { signOut } from "../actions";
 import PropertySwitcher from "./PropertySwitcher";
+import BrandMark from "./BrandMark";
 
 type NavItem = {
   href: string;
@@ -158,14 +159,14 @@ export default function Sidebar({
     item.any.length === 0 || access.isSuperuser || item.any.some((p) => access.permissions.includes(p));
 
   const nav = (
-    <nav className="space-y-6">
+    <nav className="space-y-7">
       {NAV.map((section, i) => {
         const items = section.items.filter(allowed);
         if (items.length === 0) return null;
         return (
-          <div key={section.heading ?? i} className="space-y-1">
+          <div key={section.heading ?? i} className="space-y-0.5">
             {section.heading && (
-              <p className="px-3 pb-1 text-[11px] font-medium text-slate-400">{section.heading}</p>
+              <p className="px-3 pb-1.5 text-[11px] font-medium text-slate-400">{section.heading}</p>
             )}
             {items.map(({ href, label, icon: Icon, exact }) => {
               const active = exact ? pathname === href : pathname.startsWith(href);
@@ -175,11 +176,18 @@ export default function Sidebar({
                   href={href}
                   onClick={() => setOpen(false)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    active ? "bg-yellow-50 text-yellow-800 font-medium" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] transition-colors ${
+                    active
+                      ? "relative bg-yellow-50 text-slate-900 font-medium before:absolute before:left-0 before:inset-y-2 before:w-0.5 before:rounded-full before:bg-yellow-400"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <Icon
+                    strokeWidth={1.6}
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      active ? "text-yellow-600" : "text-slate-400 group-hover:text-yellow-600"
+                    }`}
+                  />
                   <span>{label}</span>
                 </Link>
               );
@@ -191,28 +199,36 @@ export default function Sidebar({
   );
 
   const footer = (
-    <div className="border-t border-slate-200 pt-4 space-y-1">
-      <div className="px-3 pb-2">
-        <p className="text-sm text-slate-900 font-medium truncate">{staff.full_name || staff.email}</p>
-        <p className="text-[11px] text-slate-500">
-          {roleName}
-          {staff.job_title ? ` · ${staff.job_title}` : ""}
-        </p>
+    <div className="border-t border-slate-200 pt-4 mt-6 space-y-0.5">
+      <div className="flex items-center gap-3 px-3 pb-3">
+        <span
+          aria-hidden="true"
+          className="w-9 h-9 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center"
+        >
+          {(staff.full_name || staff.email || "?").trim().charAt(0).toUpperCase()}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm text-slate-900 font-medium truncate">{staff.full_name || staff.email}</span>
+          <span className="block text-[11px] text-slate-500 truncate">
+            {roleName}
+            {staff.job_title ? ` · ${staff.job_title}` : ""}
+          </span>
+        </span>
       </div>
       <Link
         href="/admin/security"
         onClick={() => setOpen(false)}
-        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+        className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
       >
-        <KeyRound className="w-4 h-4 shrink-0" />
+        <KeyRound strokeWidth={1.6} className="w-4 h-4 shrink-0 text-slate-400" />
         <span>Password &amp; 2FA</span>
       </Link>
       <form action={signOut}>
         <button
           type="submit"
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <LogOut strokeWidth={1.6} className="w-4 h-4 shrink-0 text-slate-400" />
           <span>Sign out</span>
         </button>
       </form>
@@ -220,18 +236,18 @@ export default function Sidebar({
   );
 
   const brand = (
-    <Link href="/admin" className="flex items-center gap-2.5 px-3 py-1">
-      <span className="w-7 h-7 rounded-md bg-yellow-400 text-slate-900 text-xs font-semibold flex items-center justify-center">SR</span>
+    <Link href="/admin" className="flex items-center gap-2.5 px-2 py-1">
+      <BrandMark className="w-10 h-10 shrink-0" />
       <span>
-        <span className="block text-sm font-semibold text-slate-900 leading-tight">Shamiyana</span>
-        <span className="block text-[11px] text-slate-500 leading-tight">Property management</span>
+        <span className="admin-display block text-xl text-slate-900 leading-none">Shamiyana</span>
+        <span className="block text-[9.5px] uppercase tracking-[0.18em] text-slate-500 leading-tight mt-1.5">Property management</span>
       </span>
     </Link>
   );
 
   return (
     <>
-      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 print:hidden">
+      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-white/90 backdrop-blur border-b border-slate-200 px-4 py-3 print:hidden">
         {brand}
         <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-slate-600 p-1.5 cursor-pointer">
           <Menu className="w-6 h-6" />
@@ -240,8 +256,8 @@ export default function Sidebar({
 
       {open && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
-          <div className="absolute inset-0 bg-slate-900/30" onClick={() => setOpen(false)} />
-          <aside className="relative w-64 bg-white p-3 flex flex-col justify-between overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-900/25 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <aside className="relative w-72 bg-white p-4 flex flex-col justify-between overflow-y-auto shadow-2xl">
             <div className="space-y-6">
               <div className="flex items-start justify-between">
                 {brand}
@@ -257,9 +273,9 @@ export default function Sidebar({
         </div>
       )}
 
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-60 bg-white border-r border-slate-200 p-3 flex-col justify-between overflow-y-auto print:hidden">
-        <div className="space-y-6">
-          <div className="space-y-2">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 px-4 py-6 flex-col justify-between overflow-y-auto print:hidden">
+        <div className="space-y-8">
+          <div className="space-y-4">
             {brand}
             <PropertySwitcher properties={properties} current={currentProperty} />
           </div>

@@ -5,23 +5,12 @@ import { requireAnyPermission } from "../../../lib/auth";
 import { can } from "../../../lib/permissions";
 import { getSettings } from "../../../lib/settings";
 import { addDays, isIsoDate, todayIn } from "../../../lib/dates";
-import type { Booking, BookingStatus, Room, RoomBlock, RoomType } from "../../../lib/types";
-import { BOOKING_STATUS_LABELS } from "../../../lib/types";
+import type { Booking, Room, RoomBlock, RoomType } from "../../../lib/types";
 import { PageHeader, Card, secondaryButtonClass } from "../../components/ui";
 import LiveRefresh from "../../components/LiveRefresh";
-import TapeChart from "../../components/TapeChart";
+import TapeChart, { TapeChartLegend } from "../../components/TapeChart";
 
 const SPANS = [7, 14, 30] as const;
-
-const BAR: Record<BookingStatus, string> = {
-  tentative: "bg-amber-100 border-amber-300 text-amber-900",
-  confirmed: "bg-emerald-100 border-emerald-300 text-emerald-900",
-  checked_in: "bg-blue-100 border-blue-300 text-blue-900",
-  checked_out: "bg-slate-100 border-slate-300 text-slate-600",
-  cancelled: "bg-rose-50 border-rose-200 text-rose-700",
-  no_show: "bg-orange-50 border-orange-200 text-orange-800",
-  waitlisted: "bg-violet-50 border-violet-200 text-violet-800",
-};
 
 export default async function TapeChartPage({
   searchParams,
@@ -90,16 +79,7 @@ export default async function TapeChartPage({
         }
       />
 
-      <div className="flex flex-wrap gap-3 mb-4 text-[11px]">
-        {(["tentative", "confirmed", "checked_in", "checked_out"] as BookingStatus[]).map((s) => (
-          <span key={s} className={`px-2 py-0.5 rounded border ${BAR[s]}`}>
-            {BOOKING_STATUS_LABELS[s]}
-          </span>
-        ))}
-        <span className="px-2 py-0.5 rounded border bg-[repeating-linear-gradient(45deg,#e7e5e4,#e7e5e4_4px,#f5f5f4_4px,#f5f5f4_8px)] border-stone-300 text-stone-700">
-          Blocked
-        </span>
-      </div>
+      <TapeChartLegend />
 
       <Card className="overflow-x-auto">
         <TapeChart

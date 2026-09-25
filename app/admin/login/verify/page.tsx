@@ -7,6 +7,7 @@ import { isDemoTwoFactor, demoCode } from "../../../lib/two-factor";
 import { signOut } from "../../actions";
 import { Field, inputClass } from "../../components/ui";
 import ActionForm from "../../components/ActionForm";
+import { adminFonts } from "../../fonts";
 
 export const metadata: Metadata = { title: "Verify sign-in", robots: { index: false, follow: false } };
 
@@ -18,10 +19,10 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
   const { next = "/admin" } = await searchParams;
 
   return (
-    <main className="admin-theme min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-lg border border-slate-200 p-6 shadow-sm space-y-4">
+    <main className={`admin-theme ${adminFonts} min-h-screen bg-slate-50 flex items-center justify-center p-4`}>
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-7 space-y-4">
         <div>
-          <p className="text-lg font-semibold text-slate-900">Two-step verification</p>
+          <p className="admin-display text-xl text-slate-900">Two-step verification</p>
           <p className="text-sm text-slate-600 mt-1">Enter the 6-digit code from your authenticator app.</p>
         </div>
         {isDemoTwoFactor() && (

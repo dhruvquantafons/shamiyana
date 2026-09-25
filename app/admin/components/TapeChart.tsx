@@ -15,6 +15,23 @@ const BAR: Record<BookingStatus, string> = {
   waitlisted: "bg-violet-50 border-violet-200 text-violet-800",
 };
 
+/** Hatching used for out-of-order / out-of-service blocks and their legend swatch. */
+const BLOCKED = "bg-[repeating-linear-gradient(45deg,#eaeaea,#eaeaea_4px,#f7f7f7_4px,#f7f7f7_8px)]";
+
+/** Status key shown above the chart, identical wherever the chart appears. */
+export function TapeChartLegend() {
+  return (
+    <div className="flex flex-wrap gap-3 mb-4 text-[11px]">
+      {(["tentative", "confirmed", "checked_in", "checked_out"] as BookingStatus[]).map((s) => (
+        <span key={s} className={`px-2 py-0.5 rounded border ${BAR[s]}`}>
+          {BOOKING_STATUS_LABELS[s]}
+        </span>
+      ))}
+      <span className={`px-2 py-0.5 rounded border ${BLOCKED} border-stone-300 text-stone-700`}>Blocked</span>
+    </div>
+  );
+}
+
 type Bar = { from: number; to: number; clipStart: boolean; clipEnd: boolean };
 
 function span(checkIn: string, checkOut: string, start: string, days: number): Bar | null {
@@ -71,19 +88,23 @@ export default function TapeChart({
   return (
     <div className="min-w-max">
       <div className="flex sticky top-0 z-20 bg-white border-b border-slate-200">
-        <div className="w-36 shrink-0 px-3 py-2 text-xs text-slate-500 font-semibold sticky left-0 bg-white">
+        <div className="w-36 shrink-0 px-4 flex items-center text-xs text-slate-500 font-medium sticky left-0 z-10 bg-white border-r border-slate-200">
           Room
         </div>
         <div className="grid flex-1" style={grid}>
-          {dates.map((d) => {
+          {dates.map((d, i) => {
             const date = new Date(d + "T00:00:00");
             return (
               <div
                 key={d}
-                className={`text-center py-1.5 border-r border-slate-100 ${d === today ? "bg-yellow-400 text-slate-900" : "text-slate-700"}`}
+                className={`text-center py-2 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${
+                  d === today ? "bg-yellow-50 shadow-[inset_0_-2px_0_var(--color-yellow-400)]" : ""
+                }`}
               >
-                <p className="text-[9px] uppercase">{date.toLocaleDateString("en-IN", { weekday: "short" })}</p>
-                <p className="text-xs font-medium">{date.getDate()}</p>
+                <p className={`text-[10px] uppercase tracking-wide leading-none ${d === today ? "text-yellow-700 font-medium" : "text-slate-500"}`}>
+                  {date.toLocaleDateString("en-IN", { weekday: "short" })}
+                </p>
+                <p className="text-[13px] font-medium text-slate-900 tabular-nums leading-none mt-1.5">{date.getDate()}</p>
               </div>
             );
           })}
@@ -92,7 +113,7 @@ export default function TapeChart({
 
       {roomList.map(({ type, rooms: typeRooms, unassigned }) => (
         <div key={type.id}>
-          <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold text-yellow-800 uppercase tracking-wider sticky left-0">
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-[11px] font-medium text-slate-500 uppercase tracking-wider sticky left-0">
             {type.name} · {typeRooms.length} room(s)
           </div>
 
@@ -101,14 +122,14 @@ export default function TapeChart({
             const roomBlocks = blockList.filter((b) => b.room_id === room.id);
             return (
               <div key={room.id} className="flex border-b border-slate-100">
-                <div className="w-36 shrink-0 px-3 py-1.5 sticky left-0 bg-white z-10 border-r border-slate-100">
-                  <p className="text-sm font-medium text-slate-900">{room.room_number}</p>
-                  <p className="text-[10px] text-slate-500">{roomBoardLabel(room)}</p>
+                <div className="w-36 shrink-0 px-4 py-2 flex flex-col justify-center sticky left-0 bg-white z-10 border-r border-slate-200">
+                  <p className="text-sm font-medium text-slate-900 leading-tight tabular-nums">{room.room_number}</p>
+                  <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{roomBoardLabel(room)}</p>
                 </div>
                 <div className="grid flex-1" style={grid}>
                   {dates.map((d, i) => {
                     const weekend = [5, 6].includes(dayOfWeek(d));
-                    const cls = `h-9 border-r border-slate-100 ${d === today ? "bg-yellow-50" : weekend ? "bg-slate-50" : ""}`;
+                    const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-50/60" : weekend ? "bg-slate-50" : ""}`;
                     return canCreate && d >= today ? (
                       <Link
                         key={d}
@@ -127,7 +148,7 @@ export default function TapeChart({
                       <div
                         key={bl.id}
                         title={`${bl.kind === "out_of_order" ? "Out of order" : "Out of service"}: ${bl.reason}`}
-                        className="relative z-10 m-1 rounded-md border border-stone-300 bg-[repeating-linear-gradient(45deg,#e7e5e4,#e7e5e4_4px,#f5f5f4_4px,#f5f5f4_8px)] text-[10px] text-stone-700 px-1.5 flex items-center truncate"
+                        className={`relative z-10 m-1 rounded-md border border-stone-300 ${BLOCKED} text-[10px] text-stone-700 px-1.5 flex items-center truncate`}
                         style={{ gridColumn: `${s.from + 1} / ${s.to + 1}`, gridRow: 1 }}
                       >
                         {bl.reason}
@@ -160,13 +181,13 @@ export default function TapeChart({
 
           {lanes(unassigned).map((lane, i) => (
             <div key={`u-${i}`} className="flex border-b border-slate-100 bg-amber-50/40">
-              <div className="w-36 shrink-0 px-3 py-1.5 sticky left-0 bg-amber-50 z-10 border-r border-slate-100">
+              <div className="w-36 shrink-0 px-4 py-2 flex items-center sticky left-0 bg-amber-50 z-10 border-r border-slate-200">
                 <p className="text-xs text-amber-800">Unassigned</p>
               </div>
               <div className="grid flex-1" style={grid}>
                 {dates.map((d, i) => {
                   const weekend = [5, 6].includes(dayOfWeek(d));
-                  const cls = `h-9 border-r border-slate-100 ${d === today ? "bg-yellow-50" : weekend ? "bg-slate-50" : ""}`;
+                  const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-50/60" : weekend ? "bg-slate-50" : ""}`;
                   return canCreate && d >= today ? (
                     <Link
                       key={d}

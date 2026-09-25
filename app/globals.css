@@ -261,12 +261,303 @@ section[id] {
   border-radius: 4px;
 }
 
-/* The admin panel uses its own yellow accent; inputs already show a ring. */
+/* ===========================================================================
+   Admin theme
+   Scoped to `.admin-theme`, which wraps every staff screen (the protected
+   shell, sign-in, 2FA and security pages) and nothing on the guest site.
+
+   The admin markup is written with Tailwind's stock palette names — `slate`
+   for neutrals, `yellow` for the accent, and emerald / rose / amber / blue /
+   violet for status. Tailwind v4 compiles each of those utilities to a
+   `var(--color-*)` lookup, so redefining the variables here re-themes every
+   page without renaming a class:
+
+     slate, stone, gray  → neutral white-to-ink greys
+                           (50 #FAFAFA page, 200 #EAEAEA hairline, 900 #141414 ink)
+     yellow              → the single accent: shiny yellow gold, #D4AF37 at 400.
+                           Reserved for active nav, key figures, primary
+                           buttons, chart highlights and focus/hover — never
+                           large surfaces. Deeper steps (600+) keep the same
+                           hue but hold contrast when the gold is used as text.
+                           Solid gold fills (400/500) carry a metallic sheen —
+                           see "Gold sheen" below.
+     emerald, green      → muted sage          (success, confirmed)
+     rose, red           → muted oxblood       (errors, cancelled)
+     amber               → muted ochre         (warnings, pending)
+     orange              → muted rust          (no-show)
+     blue, sky, indigo   → dusty slate-blue    (in-house, info)
+     violet, purple      → dusty mauve         (waitlist, misc.)
+
+   The status hues keep their meaning but sit at low chroma, so badges read
+   as quiet annotations rather than competing colour.
+   =========================================================================== */
+.admin-theme {
+  /* Neutrals */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f4f4f4;
+  --color-slate-200: #eaeaea;
+  --color-slate-300: #d9d9d9;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #555555;
+  --color-slate-700: #3d3d3d;
+  --color-slate-800: #262626;
+  --color-slate-900: #141414;
+  --color-slate-950: #0a0a0a;
+  --color-stone-50: var(--color-slate-50);
+  --color-stone-100: var(--color-slate-100);
+  --color-stone-200: var(--color-slate-200);
+  --color-stone-300: var(--color-slate-300);
+  --color-stone-400: var(--color-slate-400);
+  --color-stone-500: var(--color-slate-500);
+  --color-stone-600: var(--color-slate-600);
+  --color-stone-700: var(--color-slate-700);
+  --color-stone-800: var(--color-slate-800);
+  --color-stone-900: var(--color-slate-900);
+  --color-gray-50: var(--color-slate-50);
+  --color-gray-100: var(--color-slate-100);
+  --color-gray-200: var(--color-slate-200);
+  --color-gray-300: var(--color-slate-300);
+  --color-gray-400: var(--color-slate-400);
+  --color-gray-500: var(--color-slate-500);
+  --color-gray-600: var(--color-slate-600);
+  --color-gray-700: var(--color-slate-700);
+  --color-gray-800: var(--color-slate-800);
+  --color-gray-900: var(--color-slate-900);
+
+  /* Accent — shiny yellow gold */
+  --color-yellow-50: #fdf9ea;
+  --color-yellow-100: #faf0c8;
+  --color-yellow-200: #f3df8f;
+  --color-yellow-300: #e9c95a;
+  --color-yellow-400: #d4af37;
+  --color-yellow-500: #c29b22;
+  --color-yellow-600: #a6831a;
+  --color-yellow-700: #856816;
+  --color-yellow-800: #6b5315;
+  --color-yellow-900: #574414;
+  --color-yellow-950: #332708;
+
+  /* Success — sage */
+  --color-emerald-50: #f2f5f0;
+  --color-emerald-100: #e4ebe0;
+  --color-emerald-200: #cbd8c4;
+  --color-emerald-300: #a9bd9f;
+  --color-emerald-400: #849d78;
+  --color-emerald-500: #67805b;
+  --color-emerald-600: #526948;
+  --color-emerald-700: #42553a;
+  --color-emerald-800: #354530;
+  --color-emerald-900: #2a3727;
+  --color-green-50: var(--color-emerald-50);
+  --color-green-100: var(--color-emerald-100);
+  --color-green-200: var(--color-emerald-200);
+  --color-green-300: var(--color-emerald-300);
+  --color-green-400: var(--color-emerald-400);
+  --color-green-500: var(--color-emerald-500);
+  --color-green-600: var(--color-emerald-600);
+  --color-green-700: var(--color-emerald-700);
+  --color-green-800: var(--color-emerald-800);
+  --color-green-900: var(--color-emerald-900);
+
+  /* Danger — oxblood */
+  --color-rose-50: #f9f2f0;
+  --color-rose-100: #f2e2de;
+  --color-rose-200: #e5c7c0;
+  --color-rose-300: #d3a398;
+  --color-rose-400: #bd7a6d;
+  --color-rose-500: #a55d50;
+  --color-rose-600: #8c483d;
+  --color-rose-700: #733a31;
+  --color-rose-800: #5d2f28;
+  --color-rose-900: #4a2621;
+  --color-red-50: var(--color-rose-50);
+  --color-red-100: var(--color-rose-100);
+  --color-red-200: var(--color-rose-200);
+  --color-red-300: var(--color-rose-300);
+  --color-red-400: var(--color-rose-400);
+  --color-red-500: var(--color-rose-500);
+  --color-red-600: var(--color-rose-600);
+  --color-red-700: var(--color-rose-700);
+  --color-red-800: var(--color-rose-800);
+  --color-red-900: var(--color-rose-900);
+
+  /* Warning — ochre */
+  --color-amber-50: #faf5eb;
+  --color-amber-100: #f4e8d0;
+  --color-amber-200: #e9d1a6;
+  --color-amber-300: #dab47a;
+  --color-amber-400: #c99655;
+  --color-amber-500: #b27c3c;
+  --color-amber-600: #93652f;
+  --color-amber-700: #775027;
+  --color-amber-800: #5e4022;
+  --color-amber-900: #4b341e;
+
+  /* No-show — rust */
+  --color-orange-50: #faf3ee;
+  --color-orange-100: #f3e3d8;
+  --color-orange-200: #e7c6b1;
+  --color-orange-300: #d6a384;
+  --color-orange-400: #c27f5b;
+  --color-orange-500: #aa6440;
+  --color-orange-600: #8e5134;
+  --color-orange-700: #74422b;
+  --color-orange-800: #5d3625;
+  --color-orange-900: #4a2d20;
+
+  /* Info — dusty slate-blue */
+  --color-blue-50: #f1f4f6;
+  --color-blue-100: #e2e8ed;
+  --color-blue-200: #c7d2dc;
+  --color-blue-300: #a2b3c3;
+  --color-blue-400: #7c91a6;
+  --color-blue-500: #60768b;
+  --color-blue-600: #4d6073;
+  --color-blue-700: #3f4f5f;
+  --color-blue-800: #34414e;
+  --color-blue-900: #2b3540;
+  --color-sky-50: var(--color-blue-50);
+  --color-sky-100: var(--color-blue-100);
+  --color-sky-200: var(--color-blue-200);
+  --color-sky-300: var(--color-blue-300);
+  --color-sky-400: var(--color-blue-400);
+  --color-sky-500: var(--color-blue-500);
+  --color-sky-600: var(--color-blue-600);
+  --color-sky-700: var(--color-blue-700);
+  --color-sky-800: var(--color-blue-800);
+  --color-sky-900: var(--color-blue-900);
+  --color-indigo-50: var(--color-blue-50);
+  --color-indigo-100: var(--color-blue-100);
+  --color-indigo-200: var(--color-blue-200);
+  --color-indigo-300: var(--color-blue-300);
+  --color-indigo-400: var(--color-blue-400);
+  --color-indigo-500: var(--color-blue-500);
+  --color-indigo-600: var(--color-blue-600);
+  --color-indigo-700: var(--color-blue-700);
+  --color-indigo-800: var(--color-blue-800);
+  --color-indigo-900: var(--color-blue-900);
+
+  /* Misc — dusty mauve */
+  --color-violet-50: #f5f2f5;
+  --color-violet-100: #eae4ea;
+  --color-violet-200: #d6cbd7;
+  --color-violet-300: #b9a8bc;
+  --color-violet-400: #9a859f;
+  --color-violet-500: #7f6a85;
+  --color-violet-600: #68566d;
+  --color-violet-700: #56475a;
+  --color-violet-800: #463b4a;
+  --color-violet-900: #3a313d;
+  --color-purple-50: var(--color-violet-50);
+  --color-purple-100: var(--color-violet-100);
+  --color-purple-200: var(--color-violet-200);
+  --color-purple-300: var(--color-violet-300);
+  --color-purple-400: var(--color-violet-400);
+  --color-purple-500: var(--color-violet-500);
+  --color-purple-600: var(--color-violet-600);
+  --color-purple-700: var(--color-violet-700);
+  --color-purple-800: var(--color-violet-800);
+  --color-purple-900: var(--color-violet-900);
+
+  font-family: var(--font-admin-sans), system-ui, sans-serif;
+  color: var(--color-slate-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+.admin-theme ::selection {
+  background: var(--color-yellow-200);
+  color: var(--color-slate-900);
+}
+
+/* Page titles and headings in Fraunces. Unlayered, so these win over the
+   size and weight utilities the pages set and give every page one scale. */
+.admin-theme :is(h1, h2, h3) {
+  font-family: var(--font-admin-display), Georgia, serif;
+  font-weight: 500;
+  font-variation-settings: "SOFT" 30;
+  letter-spacing: -0.01em;
+  color: var(--color-slate-900);
+}
+.admin-theme h1 {
+  font-size: 1.875rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.admin-theme h2 {
+  font-size: 1.1875rem;
+  line-height: 1.3;
+}
+.admin-theme h3 {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+}
+
+/* Headline figures (KPI values, wordmark) in Fraunces. */
+.admin-theme .admin-display {
+  font-family: var(--font-admin-display), Georgia, serif;
+  font-weight: 500;
+  font-variation-settings: "SOFT" 30;
+  letter-spacing: -0.02em;
+}
+
+/* Figures align in every table and stat. */
+.admin-theme :is(table, .admin-display, .tabular-nums) {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Flat surfaces. Static cards carry no shadow at all — they are separated by
+   1px hairlines — so `shadow-sm` is switched off. Everything larger is only
+   ever used on floating elements (popovers, modals, the mobile drawer), and
+   those get one barely-visible shadow. */
+.admin-theme .shadow-sm {
+  --tw-shadow: 0 0 #0000;
+}
+.admin-theme :is(.shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow: 0 1px 2px 0 rgb(20 20 20 / 0.05);
+}
+
+/* Hairlines. Row dividers written as slate-100 would all but vanish on
+   white, so every divider and border in the lightest greys resolves to the
+   one #EAEAEA hairline. */
+.admin-theme :is(.border-slate-100, .divide-slate-100 > :not(:last-child)) {
+  border-color: var(--color-slate-200);
+}
+
+/* Loading placeholders in the admin palette. */
+.admin-theme .shimmer {
+  background: linear-gradient(90deg, #f1f1f1 25%, #fafafa 50%, #f1f1f1 75%);
+  background-size: 200% 100%;
+}
+
+/* Gold sheen. Solid gold fills — primary buttons, the selected filter chip,
+   the active-nav bar, chart highlights — get a polished metallic gradient: a soft
+   highlight across the top over a light-to-deep gold sweep. The flat colour
+   underneath stays as the fallback. Hover deepens the sweep. */
+.admin-theme :is(.bg-yellow-400, .bg-yellow-500),
+.admin-theme .before\:bg-yellow-400::before {
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.35) 0%, rgb(255 255 255 / 0) 55%),
+    linear-gradient(135deg, #f5dc7a 0%, #d4af37 45%, #b8901c 100%);
+}
+.admin-theme :is(a, button).bg-yellow-400:hover {
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0) 55%),
+    linear-gradient(135deg, #ecd06a 0%, #c9a42c 45%, #a88216 100%);
+}
+
+/* Focus: gold outline on links and buttons; inputs already show a gold ring. */
 .admin-theme :where(a, button, summary):focus-visible {
-  outline-color: #ca8a04;
+  outline-color: var(--color-yellow-400);
 }
 .admin-theme :where(input, select, textarea):focus-visible {
   outline: none;
+}
+
+@media print {
+  .admin-theme {
+    color: #000;
+  }
 }
 
 /* ---------------------------------------------------------------------------
