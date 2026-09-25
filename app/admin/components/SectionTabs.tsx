@@ -8,7 +8,7 @@ export default function SectionTabs({ tabs, label }: { tabs: { href: string; lab
   const pathname = usePathname();
   const root = tabs[0]?.href;
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-slate-200 mb-6" aria-label={label}>
+    <nav className="flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200 mb-8" aria-label={label}>
       {tabs.map((t) => {
         const active =
           t.href === root
@@ -19,8 +19,8 @@ export default function SectionTabs({ tabs, label }: { tabs: { href: string; lab
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            className={`px-3 py-2 text-sm -mb-px border-b-2 ${
-              active ? "border-yellow-500 text-slate-900 font-medium" : "border-transparent text-slate-500 hover:text-slate-800"
+            className={`px-0.5 pb-3 pt-1 text-[13.5px] -mb-px border-b transition-colors ${
+              active ? "border-yellow-400 text-slate-900 font-medium" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
             }`}
           >
             {t.label}

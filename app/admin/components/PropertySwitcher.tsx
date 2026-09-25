@@ -38,7 +38,7 @@ export default function PropertySwitcher({
           defaultValue={current ?? ""}
           disabled={pending}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
-          className="w-full appearance-none bg-slate-100 border border-slate-200 rounded-md pl-8 pr-2 py-1.5 text-xs text-slate-700 hover:border-slate-300 focus:border-yellow-500 focus:outline-none disabled:opacity-60 cursor-pointer"
+          className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2 py-2 text-xs text-slate-700 hover:border-slate-300 focus:border-yellow-500 focus:outline-none disabled:opacity-60 cursor-pointer"
         >
           {properties.map((p) => (
             <option key={p.id} value={p.id}>

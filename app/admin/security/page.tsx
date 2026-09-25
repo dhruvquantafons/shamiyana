@@ -11,6 +11,7 @@ import { Card, Field, Notice, inputClass } from "../components/ui";
 import ActionForm from "../components/ActionForm";
 import TwoFactorPanel from "./TwoFactorPanel";
 import { isDemoTwoFactor, demoCode } from "../../lib/two-factor";
+import { adminFonts } from "../fonts";
 
 export const metadata: Metadata = { title: "Password & 2FA", robots: { index: false, follow: false } };
 
@@ -34,11 +35,11 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   const blocked = mustChange || needs2fa;
 
   return (
-    <main className="admin-theme min-h-screen bg-slate-50 p-4 sm:p-8">
+    <main className={`admin-theme ${adminFonts} min-h-screen bg-slate-50 p-4 sm:p-8`}>
       <div className="max-w-xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xl font-semibold tracking-tight text-slate-900">Password &amp; two-factor</p>
+            <p className="admin-display text-2xl text-slate-900">Password &amp; two-factor</p>
             <p className="text-sm text-slate-600">
               {session.staff.full_name || session.staff.email} · {session.role.name}
             </p>

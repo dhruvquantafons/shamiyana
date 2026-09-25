@@ -12,11 +12,11 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="text-slate-900">{title}</h1>
         {description && (
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl">{description}</p>
+          <p className="text-sm text-slate-500 mt-2 max-w-2xl leading-relaxed">{description}</p>
         )}
       </div>
       {action}
@@ -32,7 +32,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`bg-white border border-slate-200 rounded-lg ${className}`}>
+    <div className={`bg-white border border-slate-200 rounded-xl ${className}`}>
       {children}
     </div>
   );
@@ -41,7 +41,7 @@ export function Card({
 export function StatusPill({ status }: { status: BookingStatus }) {
   return (
     <span
-      className={`inline-flex items-center self-center px-2 py-0.5 rounded-md text-xs font-medium border whitespace-nowrap ${BOOKING_STATUS_STYLES[status]}`}
+      className={`inline-flex items-center self-center px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${BOOKING_STATUS_STYLES[status]}`}
     >
       {BOOKING_STATUS_LABELS[status]}
     </span>
@@ -60,12 +60,14 @@ export function StatCard({
   hint?: string;
 }) {
   const body = (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors h-full">
-      <p className="text-xs font-medium text-slate-500">
-        {label}
-      </p>
-      <p className="text-2xl font-semibold tracking-tight text-slate-900 mt-1">{value}</p>
-      {hint && <p className="text-[11px] text-slate-500 mt-1">{hint}</p>}
+    <div
+      className={`bg-white border border-slate-200 rounded-xl px-5 py-4 h-full transition-colors ${
+        href ? "hover:border-yellow-300" : ""
+      }`}
+    >
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="admin-display text-[2rem] leading-none text-yellow-700 mt-3">{value}</p>
+      {hint && <p className="text-[11px] text-slate-500 mt-1.5">{hint}</p>}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;
@@ -82,7 +84,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-medium text-slate-700 mb-1">
+      <span className="block text-[13px] font-medium text-slate-700 mb-1.5">
         {label}
       </span>
       {children}
@@ -92,20 +94,20 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-400/30 transition-colors";
+  "w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none focus:border-yellow-400 focus:ring-3 focus:ring-yellow-400/20 transition-colors";
 
 export const buttonClass =
-  "inline-flex items-center justify-center px-3.5 py-2 text-sm font-medium rounded-md bg-yellow-400 text-slate-900 shadow-sm hover:bg-yellow-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-yellow-400 text-slate-900 hover:bg-yellow-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const secondaryButtonClass =
-  "inline-flex items-center justify-center px-3.5 py-2 text-sm font-medium rounded-md bg-white text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50";
+  "inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-white text-slate-700 border border-slate-200 hover:border-yellow-400 hover:text-slate-900 transition-colors cursor-pointer disabled:opacity-50";
 
 export function Banner({ error, success }: { error?: string; success?: string }) {
   if (!error && !success) return null;
   return (
     <p
       role="status"
-      className={`text-sm px-3 py-2 rounded-md border ${
+      className={`text-sm px-3.5 py-2.5 rounded-lg border ${
         error
           ? "bg-rose-50 text-rose-800 border-rose-200"
           : "bg-emerald-50 text-emerald-800 border-emerald-200"
@@ -118,7 +120,7 @@ export function Banner({ error, success }: { error?: string; success?: string })
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="text-center py-12 text-sm text-slate-500">{message}</div>
+    <div className="text-center py-14 text-sm text-slate-500">{message}</div>
   );
 }
 
@@ -147,14 +149,14 @@ export function fmtMoney(amount: number | null | undefined) {
 }
 
 export const dangerButtonClass =
-  "inline-flex items-center justify-center px-3.5 py-2 text-sm font-medium rounded-md bg-white text-rose-700 border border-rose-200 shadow-sm hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-white text-rose-700 border border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const checkboxClass = "accent-yellow-500 w-4 h-4 shrink-0 rounded";
 
 export function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-      <h2 className="text-sm font-semibold text-slate-900">{children}</h2>
+      <h2 className="text-slate-900">{children}</h2>
       {action}
     </div>
   );
@@ -195,7 +197,7 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "warn" | "
     ok: "bg-emerald-50 border-emerald-200 text-emerald-900",
     error: "bg-rose-50 border-rose-200 text-rose-900",
   };
-  return <div className={`text-sm border rounded-md px-3.5 py-2.5 leading-relaxed ${tones[tone]}`}>{children}</div>;
+  return <div className={`text-sm border rounded-lg px-4 py-3 leading-relaxed ${tones[tone]}`}>{children}</div>;
 }
 
 export function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "gold" | "green" | "red" | "amber" | "blue" | "violet" }) {
@@ -209,7 +211,7 @@ export function Tag({ children, tone = "neutral" }: { children: React.ReactNode;
     violet: "bg-violet-50 text-violet-800 border-violet-200",
   };
   return (
-    <span className={`inline-flex items-center self-center px-1.5 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap ${tones[tone]}`}>
+    <span className={`inline-flex items-center self-center px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${tones[tone]}`}>
       {children}
     </span>
   );

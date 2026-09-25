@@ -11,7 +11,7 @@ import { kpisFrom, reportByKind, resolveRange, type DailyRow } from "../../lib/r
 import { runReport } from "../../lib/report-data";
 import LiveRefresh from "../components/LiveRefresh";
 import { PageHeader, Card, StatCard, StatusPill, fmtDate, fmtMoney } from "../components/ui";
-import TapeChart from "../components/TapeChart";
+import TapeChart, { TapeChartLegend } from "../components/TapeChart";
 
 const BOARD_TONE: Record<string, string> = {
   "Vacant Clean": "bg-emerald-500",
@@ -255,30 +255,33 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
 
           {(tapeRooms.data?.length ?? 0) > 0 && (
-            <Card className="mb-6 overflow-x-auto">
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-slate-900">Tape chart</h2>
                 <Link href="/admin/tape-chart" className="text-sm text-yellow-800 hover:text-yellow-900">
                   Full tape chart →
                 </Link>
               </div>
-              <TapeChart
-                rooms={tapeRooms.data ?? []}
-                roomTypes={tapeTypes.data ?? []}
-                bookings={(tapeBookings.data ?? []) as unknown as Booking[]}
-                blocks={tapeBlocks.data ?? []}
-                start={tapeStart}
-                days={tapeDays}
-                today={today}
-                canCreate={canCreate}
-              />
-            </Card>
+              <TapeChartLegend />
+              <Card className="overflow-x-auto">
+                <TapeChart
+                  rooms={tapeRooms.data ?? []}
+                  roomTypes={tapeTypes.data ?? []}
+                  bookings={(tapeBookings.data ?? []) as unknown as Booking[]}
+                  blocks={tapeBlocks.data ?? []}
+                  start={tapeStart}
+                  days={tapeDays}
+                  today={today}
+                  canCreate={canCreate}
+                />
+              </Card>
+            </div>
           )}
         </>
       )}
 
       {roomList.length > 0 && (
-        <Card className="p-4">
+        <Card className="px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-900">Room status</h2>
             <Link href="/admin/rooms" className="text-sm text-yellow-800 hover:text-yellow-900">
