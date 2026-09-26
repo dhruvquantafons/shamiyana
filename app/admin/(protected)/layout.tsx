@@ -5,6 +5,7 @@ import { getSettings } from "../../lib/settings";
 import { getProperties, getCurrentProperty } from "../../lib/properties";
 import { hasSupabaseConfig } from "../../lib/supabase/config";
 import Sidebar from "../components/Sidebar";
+import TopBar from "../components/TopBar";
 import SetupNotice from "../components/SetupNotice";
 import IdleTimer from "../components/IdleTimer";
 import { adminFonts } from "../fonts";
@@ -30,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   ]);
 
   return (
-    <div className={`admin-theme ${adminFonts} min-h-screen bg-slate-50 print:bg-white`}>
+    <div className={`admin-theme ${adminFonts} min-h-screen bg-white`}>
       <Sidebar
         staff={session.staff}
         roleName={session.role.name}
@@ -40,7 +41,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       />
       <IdleTimer minutes={settings.session_timeout_minutes} />
       <div className="lg:pl-64 print:pl-0">
-        <main className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-10 print:p-0 print:max-w-none">{children}</main>
+        <TopBar access={accessForClient(session)} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8 print:p-0 print:max-w-none">{children}</main>
       </div>
     </div>
   );

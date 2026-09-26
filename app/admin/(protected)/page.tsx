@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, LogIn, LogOut } from "lucide-react";
+import { AlertTriangle, ArrowRight, LogIn, LogOut, Plus } from "lucide-react";
 import { createClient } from "../../lib/supabase/server";
 import { requireSession } from "../../lib/auth";
 import { can } from "../../lib/permissions";
@@ -10,15 +10,23 @@ import { todayIn, minutesSince, addDays } from "../../lib/dates";
 import { kpisFrom, reportByKind, resolveRange, type DailyRow } from "../../lib/reports";
 import { runReport } from "../../lib/report-data";
 import LiveRefresh from "../components/LiveRefresh";
-import { PageHeader, Card, StatCard, StatusPill, fmtDate, fmtMoney } from "../components/ui";
+import { PageHeader, Card, StatCard, StatusPill, Avatar, buttonClass, fmtDate, fmtMoney } from "../components/ui";
 import TapeChart, { TapeChartLegend } from "../components/TapeChart";
+import { OccupancyRevenueChart, OCCUPANCY_COLOR, REVENUE_COLOR, RoomStatusDonut } from "../components/charts";
 
+/**
+ * Donut colours per room-board state (hex: they are drawn as SVG), in slice
+ * order. Checked with the dataviz palette validator — the order keeps the
+ * greens away from the red, which colour-blind readers would confuse. Grey
+ * for Out of Service is deliberate (the room is out of play), and the
+ * legend's counts carry identity.
+ */
 const BOARD_TONE: Record<string, string> = {
-  "Vacant Clean": "bg-emerald-500",
-  "Vacant Dirty": "bg-amber-500",
-  Occupied: "bg-blue-500",
-  "Out of Order": "bg-rose-500",
-  "Out of Service": "bg-slate-400",
+  Occupied: "#3f8f45",
+  "Vacant Clean": "#5cc29a",
+  "Vacant Dirty": "#dca22a",
+  "Out of Order": "#cf5f52",
+  "Out of Service": "#9ea2a0",
 };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
@@ -35,13 +43,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const tapeDays = 14;
   const tapeEnd = addDays(tapeStart, tapeDays);
 
+  // One daily_revenue run over the last 30 days feeds the revenue chart;
+  // today's KPIs are computed from today's row alone, exactly as before.
+  const revenueRows = seesRevenue
+    ? (((await runReport(supabase, reportByKind("daily_revenue")!, resolveRange("last30", today))).rows ??
+        []) as unknown as DailyRow[])
+    : [];
   const todayKpis = seesRevenue
     ? kpisFrom(
-        ((await runReport(supabase, reportByKind("daily_revenue")!, resolveRange("today", today))).rows ??
-          []) as unknown as DailyRow[],
+        revenueRows.filter((r) => r.day === today),
         Number(settings.monthly_operating_cost),
       )
     : null;
+  // The report's own rooms sold ÷ rooms available gives each day's occupancy.
+  const revenueTrend = revenueRows
+    .map((r) => ({
+      day: r.day,
+      occupancy: Number(r.rooms_available) > 0 ? Math.round((Number(r.rooms_sold) / Number(r.rooms_available)) * 1000) / 10 : null,
+      revenue: Number(r.total_revenue),
+    }))
+    .sort((a, z) => a.day.localeCompare(z.day));
 
   const [
     tentative,
@@ -186,10 +207,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title={`Good day, ${session.staff.full_name.split(" ")[0] || "there"}`}
         description={`${fmtDate(today)} · business date ${fmtDate(settings.business_date)}`}
+        action={
+          canCreate ? (
+            <Link href="/admin/bookings/new" className={buttonClass}>
+              <Plus className="w-4 h-4 mr-1.5" /> New booking
+            </Link>
+          ) : null
+        }
       />
 
       {denied && (
-        <div className="mb-6 flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-md px-3.5 py-2.5">
+        <div className="mb-6 flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-2.5">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           Your role does not include that section.
         </div>
@@ -198,9 +226,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       {alerts.length > 0 && (
         <Card className="mb-6 divide-y divide-slate-100">
           {alerts.map((a) => (
-            <Link key={a.text} href={a.href} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+            <Link key={a.text} href={a.href} className="group flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-150">
+              <span className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+              </span>
               {a.text}
+              <ArrowRight className="w-3.5 h-3.5 ml-auto text-slate-300 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:text-slate-500" />
             </Link>
           ))}
         </Card>
@@ -209,7 +240,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       {seesBookings && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Arriving today" value={arrivalList.length} href="/admin/front-desk" />
+            <StatCard label="Arriving today" value={arrivalList.length} href="/admin/front-desk" icon={<LogIn />} highlight />
             <StatCard label="Departing today" value={departureList.length} href="/admin/front-desk" />
             <StatCard label="In house" value={inHouse.count ?? 0} href="/admin/front-desk" />
             <StatCard
@@ -248,17 +279,65 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               />
             </div>
           )}
+        </>
+      )}
 
+      {((seesBookings && todayKpis) || roomList.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {seesBookings && todayKpis && (
+            <Card className={`px-5 py-4 ${roomList.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-slate-900">Occupancy &amp; revenue</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Last 30 days · revenue including tax</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ background: OCCUPANCY_COLOR }} /> Occupancy
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ background: REVENUE_COLOR }} /> Revenue
+                  </span>
+                  <Link href="/admin/reports/financial" className="font-medium text-emerald-700 hover:text-emerald-900 transition-colors duration-150">
+                    Financial report →
+                  </Link>
+                </div>
+              </div>
+              <OccupancyRevenueChart data={revenueTrend} />
+            </Card>
+          )}
+          {roomList.length > 0 && (
+            <Card className={`px-5 py-4 ${seesBookings && todayKpis ? "" : "lg:col-span-3"}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-slate-900">Room status</h2>
+                <Link href="/admin/rooms" className="text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors duration-150">
+                  Room board →
+                </Link>
+              </div>
+              <RoomStatusDonut
+                data={Object.keys(BOARD_TONE).map((label) => ({
+                  label,
+                  count: statusCounts[label] ?? 0,
+                  color: BOARD_TONE[label],
+                }))}
+              />
+            </Card>
+          )}
+        </div>
+      )}
+
+      {seesBookings && (
+        <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <MovementList title="Arrivals" icon={<LogIn className="w-4 h-4 text-emerald-600" />} bookings={arrivalList} empty="No arrivals today." />
-            <MovementList title="Departures" icon={<LogOut className="w-4 h-4 text-blue-600" />} bookings={departureList} empty="No departures today." />
+            <MovementList title="Arrivals" icon={<LogIn className="w-4 h-4" />} bookings={arrivalList} empty="No arrivals today." />
+            <MovementList title="Departures" icon={<LogOut className="w-4 h-4" />} bookings={departureList} empty="No departures today." />
           </div>
 
           {(tapeRooms.data?.length ?? 0) > 0 && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-slate-900">Tape chart</h2>
-                <Link href="/admin/tape-chart" className="text-sm text-yellow-800 hover:text-yellow-900">
+                <h2 className="text-slate-900">Tape chart</h2>
+                <Link href="/admin/tape-chart" className="text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors duration-150">
                   Full tape chart →
                 </Link>
               </div>
@@ -280,25 +359,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </>
       )}
 
-      {roomList.length > 0 && (
-        <Card className="px-5 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-900">Room status</h2>
-            <Link href="/admin/rooms" className="text-sm text-yellow-800 hover:text-yellow-900">
-              Room board →
-            </Link>
-          </div>
-          <div className="flex flex-wrap gap-x-8 gap-y-3">
-            {Object.keys(BOARD_TONE).map((label) => (
-              <div key={label} className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${BOARD_TONE[label]}`} />
-                <span className="text-sm text-slate-600">{label}</span>
-                <span className="text-sm font-semibold text-slate-900">{statusCounts[label] ?? 0}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </>
   );
 }
@@ -316,18 +376,19 @@ function MovementList({
 }) {
   return (
     <Card>
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-        {icon}
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <span className="ml-auto text-xs text-slate-500">{bookings.length}</span>
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
+        <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">{icon}</span>
+        <h2 className="text-slate-900">{title}</h2>
+        <span className="min-w-6 px-2 py-0.5 rounded-full bg-emerald-100 text-[11px] font-semibold text-emerald-800 text-center tabular-nums">{bookings.length}</span>
       </div>
       {bookings.length === 0 ? (
-        <p className="px-4 py-8 text-sm text-slate-500 text-center">{empty}</p>
+        <p className="px-5 py-10 text-sm text-slate-500 text-center">{empty}</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {bookings.map((b) => (
             <li key={b.id}>
-              <Link href={`/admin/bookings/${b.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+              <Link href={`/admin/bookings/${b.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors duration-150">
+                <Avatar name={b.guests?.full_name || b.contact_name} />
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-medium text-slate-900 truncate">
                     {b.guests?.full_name || b.contact_name || "Unnamed guest"}
@@ -336,7 +397,7 @@ function MovementList({
                     {b.adults + b.children} guest(s) · {b.rooms_count} room(s)
                   </span>
                 </span>
-                <span className={`text-xs ${b.rooms?.room_number ? "text-slate-600" : "text-amber-700"}`}>
+                <span className={`text-xs tabular-nums ${b.rooms?.room_number ? "text-slate-600" : "text-amber-700"}`}>
                   {b.rooms?.room_number ?? "No room"}
                 </span>
                 <StatusPill status={b.status} />

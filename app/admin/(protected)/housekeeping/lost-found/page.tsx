@@ -1,27 +1,42 @@
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requirePermission } from "../../../../lib/auth";
 import { getSettings } from "../../../../lib/settings";
 import { todayIn } from "../../../../lib/dates";
 import type { LostFoundItem, Room } from "../../../../lib/types";
 import { logLostItem } from "../../../housekeeping-actions";
-import { Card, Field, SectionTitle, EmptyState, inputClass, fmtDate } from "../../../components/ui";
+import {
+  Card,
+  Field,
+  SectionTitle,
+  EmptyState,
+  inputClass,
+  fmtDate,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../../components/ui";
 import ActionForm from "../../../components/ActionForm";
 
-export default async function LostFoundPage() {
+export default async function LostFoundPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await requirePermission("housekeeping.lost_found");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const settings = await getSettings();
   const today = todayIn(settings.timezone);
 
-  const [{ data }, { data: rooms }] = await Promise.all([
+  const [{ data, error, count }, { data: rooms }] = await Promise.all([
     supabase
       .from("lost_found_items")
-      .select("*, rooms(room_number), staff:found_by(full_name)")
+      .select("*, rooms(room_number), staff:found_by(full_name)", { count: "exact" })
       .order("found_on", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(300),
+      .range(...pageRange(page)),
     supabase.from("rooms").select("id, room_number").order("room_number"),
   ]);
+  if (outOfRange(error)) redirect(pageHref("/admin/housekeeping/lost-found", {}, 1));
   const items = (data ?? []) as (LostFoundItem & { staff: { full_name: string } | null })[];
 
   return (
@@ -72,6 +87,7 @@ export default async function LostFoundPage() {
             ))}
           </ul>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/housekeeping/lost-found" />
       </Card>
     </div>
   );

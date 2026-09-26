@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
@@ -5,17 +6,36 @@ import { can } from "../../../lib/permissions";
 import { getSettings } from "../../../lib/settings";
 import { todayIn } from "../../../lib/dates";
 import { runNightAudit } from "../../night-audit-actions";
-import { PageHeader, Card, Check, Notice, SectionTitle, Tag, fmtDate, fmtDateTime, fmtMoney } from "../../components/ui";
+import {
+  PageHeader,
+  Card,
+  Check,
+  Notice,
+  SectionTitle,
+  Tag,
+  fmtDate,
+  fmtDateTime,
+  fmtMoney,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../components/ui";
+
+/** A fortnight of closed days per page of history. */
+const HISTORY_PAGE = 14;
 import ActionForm from "../../components/ActionForm";
 
-export default async function NightAuditPage() {
+export default async function NightAuditPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await requirePermission("frontdesk.night_audit");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const settings = await getSettings();
   const day = settings.business_date;
   const today = todayIn(settings.timezone);
 
-  const [{ data: due }, { data: overstays }, { data: unassigned }, { count: inHouse }, { data: history }, { data: current }] =
+  const [{ data: due }, { data: overstays }, { data: unassigned }, { count: inHouse }, { data: history, error: historyError, count: historyCount }, { data: current }] =
     await Promise.all([
       supabase
         .from("bookings")
@@ -29,10 +49,15 @@ export default async function NightAuditPage() {
         .eq("status", "checked_in")
         .is("room_id", null),
       supabase.from("bookings").select("id", { count: "exact", head: true }).eq("status", "checked_in"),
-      supabase.from("night_audits").select("business_date, status, completed_at, report").order("business_date", { ascending: false }).limit(14),
+      supabase
+        .from("night_audits")
+        .select("business_date, status, completed_at, report", { count: "exact" })
+        .order("business_date", { ascending: false })
+        .range(...pageRange(page, HISTORY_PAGE)),
       supabase.from("night_audits").select("status, error").eq("business_date", day).maybeSingle(),
     ]);
 
+  if (outOfRange(historyError)) redirect(pageHref("/admin/night-audit", {}, 1));
   const pending = due ?? [];
 
   return (
@@ -131,6 +156,13 @@ export default async function NightAuditPage() {
               })}
             </ul>
           )}
+          <Pagination
+            page={page}
+            total={historyCount ?? 0}
+            pageSize={HISTORY_PAGE}
+            path="/admin/night-audit"
+            className="pt-4 mt-4 border-t border-slate-100"
+          />
         </Card>
       </div>
     </>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requireAnyPermission } from "../../../../lib/auth";
 import { getSettings } from "../../../../lib/settings";
@@ -14,6 +15,11 @@ import {
   fmtDateTime,
   fmtMoney,
   tableHeadClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
 } from "../../../components/ui";
 
 /**
@@ -21,20 +27,26 @@ import {
  * stay listed with their number: an invoice series has to be continuous for
  * the auditor, so nothing is ever removed or renumbered.
  */
-export default async function InvoicesPage() {
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await requireAnyPermission(["folio.view", "folio.invoice"]);
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const settings = await getSettings();
   const fy = financialYearOf(todayIn(settings.timezone));
 
-  const { data } = await supabase
-    .from("invoices")
-    .select("*, bookings(reference, check_in, check_out), event_bookings(number, title, event_date)")
-    .order("issued_at", { ascending: false })
-    .limit(300);
+  // The list pages; the year's figures come from every invoice in the year.
+  const [{ data, error, count }, { data: yearRows }] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select("*, bookings(reference, check_in, check_out), event_bookings(number, title, event_date)", { count: "exact" })
+      .order("issued_at", { ascending: false })
+      .range(...pageRange(page)),
+    supabase.from("invoices").select("status, grand_total, tax_total").eq("financial_year", fy),
+  ]);
+  if (outOfRange(error)) redirect(pageHref("/admin/billing/invoices", {}, 1));
   const invoices = (data ?? []) as Invoice[];
 
-  const thisYear = invoices.filter((i) => i.financial_year === fy);
+  const thisYear = (yearRows ?? []) as Pick<Invoice, "status" | "grand_total" | "tax_total">[];
   const issued = thisYear.filter((i) => i.status === "issued");
   const billed = issued.reduce((s, i) => s + Number(i.grand_total), 0);
   const tax = issued.reduce((s, i) => s + Number(i.tax_total), 0);
@@ -119,6 +131,7 @@ export default async function InvoicesPage() {
             </table>
           </div>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/billing/invoices" />
       </Card>
     </div>
   );

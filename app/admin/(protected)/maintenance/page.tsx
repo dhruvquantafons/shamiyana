@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { requireAnyPermission } from "../../../lib/auth";
 import { can } from "../../../lib/permissions";
@@ -7,7 +8,23 @@ import { minutesSince, todayIn, zonedTime } from "../../../lib/dates";
 import type { Asset, MaintenanceTicket, MtPriority, MtStatus, Room } from "../../../lib/types";
 import { MT_PRIORITIES, MT_PRIORITY_LABELS, MT_STATUS_LABELS } from "../../../lib/types";
 import { assignTicket } from "../../maintenance-actions";
-import { Card, EmptyState, Notice, StatCard, Tag, inputClass, secondaryButtonClass, tableHeadClass, fmtDateTime } from "../../components/ui";
+import {
+  Card,
+  EmptyState,
+  Notice,
+  StatCard,
+  Tag,
+  inputClass,
+  secondaryButtonClass,
+  tableHeadClass,
+  fmtDateTime,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+  clampPage,
+} from "../../components/ui";
 import { DueTag, OPEN_STATUSES, PRIORITY_TONE, ReportTicketForm, STATUS_TONE, nameOf, staffWith, whereOf } from "./shared";
 
 const VIEWS = { open: "Open", resolved: "Resolved", all: "All" } as const;
@@ -16,27 +33,30 @@ type View = keyof typeof VIEWS;
 export default async function MaintenanceBoard({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; priority?: string; report?: string; room?: string }>;
+  searchParams: Promise<{ view?: string; priority?: string; report?: string; room?: string; page?: string }>;
 }) {
   const session = await requireAnyPermission(["maintenance.report", "maintenance.work", "maintenance.manage"]);
   const params = await searchParams;
   const view: View = params.view && params.view in VIEWS ? (params.view as View) : "open";
   const priority = MT_PRIORITIES.includes(params.priority as MtPriority) ? (params.priority as MtPriority) : null;
+  const requestedPage = pageParam(params.page);
   const manage = can(session, "maintenance.manage");
   const supabase = await createClient();
   const settings = await getSettings();
   const dayStart = zonedTime(todayIn(settings.timezone), "00:00", settings.timezone).toISOString();
 
+  // The open view is sorted by urgency below, so it loads every open ticket
+  // and pages in memory; the other views page in the database.
   let query = supabase
     .from("maintenance_tickets")
-    .select("*, rooms(room_number), assets(code, name)")
-    .order("created_at", { ascending: false })
-    .limit(300);
+    .select("*, rooms(room_number), assets(code, name)", { count: "exact" })
+    .order("created_at", { ascending: false });
+  if (view !== "open") query = query.range(...pageRange(requestedPage));
   if (view === "open") query = query.in("status", OPEN_STATUSES);
   if (view === "resolved") query = query.in("status", ["resolved", "cancelled"]);
   if (priority) query = query.eq("priority", priority);
 
-  const [{ data }, { data: openRows }, { count: resolvedToday }, { data: rooms }, { data: assets }, engineers] = await Promise.all([
+  const [{ data, error, count }, { data: openRows }, { count: resolvedToday }, { data: rooms }, { data: assets }, engineers] = await Promise.all([
     query,
     supabase.from("maintenance_tickets").select("id, priority, status, due_at, assigned_to, affects_room").in("status", OPEN_STATUSES),
     supabase.from("maintenance_tickets").select("id", { count: "exact", head: true }).eq("status", "resolved").gte("resolved_at", dayStart),
@@ -45,10 +65,17 @@ export default async function MaintenanceBoard({
     staffWith(supabase, "maintenance.work"),
   ]);
 
+  const listParams = { view: view !== "open" ? view : null, priority };
+  if (outOfRange(error)) redirect(pageHref("/admin/maintenance", listParams, 1));
   let tickets = (data ?? []) as MaintenanceTicket[];
+  const total = count ?? tickets.length;
+  const page = view === "open" ? clampPage(requestedPage, total) : requestedPage;
   // Open view: urgent first, then soonest due.
   const rank: Record<MtPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-  if (view === "open") tickets = tickets.sort((a, b) => rank[a.priority] - rank[b.priority] || a.due_at.localeCompare(b.due_at));
+  if (view === "open") {
+    const [from, to] = pageRange(page);
+    tickets = tickets.sort((a, b) => rank[a.priority] - rank[b.priority] || a.due_at.localeCompare(b.due_at)).slice(from, to + 1);
+  }
 
   const open = (openRows ?? []) as Pick<MaintenanceTicket, "id" | "priority" | "status" | "due_at" | "assigned_to" | "affects_room">[];
   const overdue = open.filter((t) => minutesSince(t.due_at) > 0);
@@ -179,6 +206,7 @@ export default async function MaintenanceBoard({
             </table>
           </div>
         )}
+        <Pagination page={page} total={total} path="/admin/maintenance" params={listParams} />
       </Card>
 
       <p className="text-xs text-slate-500">

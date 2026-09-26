@@ -1,26 +1,19 @@
-import { Fraunces, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 
 /**
- * Typefaces for the admin panel only.
+ * The admin panel's typeface.
  *
  * Loaded here rather than in the root layout so the guest site never
- * downloads them. Fraunces (variable, with optical sizing) carries page
- * titles, headings and headline figures; Inter carries body copy, tables,
- * labels and buttons. The `.admin-theme` rules in globals.css read the two
- * variables below.
+ * downloads it. Inter carries everything — body, tables, labels, and at a
+ * heavier weight with tighter tracking, the headings and headline figures.
+ * `.admin-theme` in globals.css points `--font-admin-display` at this same
+ * variable, so the heading rules keep working without a second font.
  */
-const display = Fraunces({
-  variable: "--font-admin-display",
-  subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
-  display: "swap",
-});
-
 const sans = Inter({
   variable: "--font-admin-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-/** Put on every `.admin-theme` root so both variables are in scope. */
-export const adminFonts = `${display.variable} ${sans.variable}`;
+/** Put on every `.admin-theme` root so the variable is in scope. */
+export const adminFonts = sans.variable;

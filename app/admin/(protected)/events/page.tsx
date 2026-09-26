@@ -31,6 +31,10 @@ import {
   fmtMoney,
   inputClass,
   tableHeadClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  clampPage,
 } from "../../components/ui";
 import ActionForm from "../../components/ActionForm";
 import { createEvent } from "../../event-actions";
@@ -65,10 +69,11 @@ const FILTER_LABELS: Record<Filter, string> = {
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ show?: string }>;
+  searchParams: Promise<{ show?: string; page?: string }>;
 }) {
   const session = await requireAnyPermission(["events.view", "events.book"]);
-  const { show } = await searchParams;
+  const { show, page: pageRaw } = await searchParams;
+  const requestedPage = pageParam(pageRaw);
   const supabase = await createClient();
   const settings = await getSettings();
   const today = todayIn(settings.timezone);
@@ -107,6 +112,12 @@ export default async function EventsPage({
           : filter === "awaiting_approval"
             ? live.filter((e) => e.status === "quoted" && e.approval_required && !e.approved_at)
             : live.filter((e) => e.event_date >= today);
+
+  // The filters and headline figures work over every loaded event, so the
+  // list pages in memory rather than in the query.
+  const page = clampPage(requestedPage, events.length);
+  const [pageFrom, pageTo] = pageRange(page);
+  const shown = events.slice(pageFrom, pageTo + 1);
 
   const confirmedAhead = live.filter((e) => e.event_date >= today && e.status === "confirmed");
   const chasing = live.filter((e) => e.status === "enquiry" || e.status === "quoted");
@@ -285,7 +296,7 @@ export default async function EventsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {events.map((e) => (
+                {shown.map((e) => (
                   <tr key={e.id} className={e.status === "cancelled" ? "text-slate-400" : "hover:bg-slate-50/60"}>
                     <td className="py-2 px-4 whitespace-nowrap">
                       <Link href={`/admin/events/${e.id}`} className="font-mono text-yellow-700 hover:underline">
@@ -321,6 +332,7 @@ export default async function EventsPage({
             </table>
           </div>
         )}
+        <Pagination page={page} total={events.length} path="/admin/events" params={{ show: filter }} />
       </Card>
     </div>
   );

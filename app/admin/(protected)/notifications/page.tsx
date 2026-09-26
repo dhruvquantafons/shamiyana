@@ -1,9 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { requireAnyPermission } from "../../../lib/auth";
 import { TEMPLATE_LABELS } from "../../../lib/message-templates";
 import type { Notification, Staff } from "../../../lib/types";
-import { PageHeader, Card, StatCard, Notice, inputClass } from "../../components/ui";
+import {
+  PageHeader,
+  Card,
+  StatCard,
+  Notice,
+  inputClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../components/ui";
 import NotificationList, { templateName } from "../../components/NotificationList";
 
 /**
@@ -26,44 +38,56 @@ const STAFF_TEMPLATES = [
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string; template?: string; staff?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; template?: string; staff?: string; page?: string }>;
 }) {
   await requireAnyPermission(["guests.view", "settings.manage", "audit.view"]);
   const supabase = await createClient();
   const params = await searchParams;
 
-  let query = supabase
-    .from("notifications")
-    .select("*, bookings(id, reference), staff:staff_id(id, full_name)")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const page = pageParam(params.page);
+  const kind = params.kind === "guest" || params.kind === "staff" ? params.kind : null;
+  const status = params.status && ["sent", "skipped", "failed"].includes(params.status) ? params.status : null;
+  const staffId = params.staff && /^[0-9a-f-]{36}$/i.test(params.staff) ? params.staff : null;
 
-  if (params.kind === "guest" || params.kind === "staff") query = query.eq("kind", params.kind);
-  if (params.status && ["sent", "skipped", "failed"].includes(params.status)) {
-    query = query.eq("status", params.status);
-  }
-  if (params.template) query = query.eq("template", params.template);
-  if (params.staff && /^[0-9a-f-]{36}$/i.test(params.staff)) query = query.eq("staff_id", params.staff);
+  // The log and its status counts share one set of filters. The list pages;
+  // the counts cover everything that matches.
+  const filtered = (columns: string, head = false) => {
+    let q = supabase.from("notifications").select(columns, { count: "exact", head });
+    if (kind) q = q.eq("kind", kind);
+    if (status) q = q.eq("status", status);
+    if (params.template) q = q.eq("template", params.template);
+    if (staffId) q = q.eq("staff_id", staffId);
+    return q;
+  };
 
-  const [{ data: rows }, { data: people }] = await Promise.all([
-    query,
+  const [{ data: rows, error, count }, sent, skipped, failed, { data: people }] = await Promise.all([
+    filtered("*, bookings(id, reference), staff:staff_id(id, full_name)")
+      .order("created_at", { ascending: false })
+      .range(...pageRange(page)),
+    filtered("id", true).eq("status", "sent"),
+    filtered("id", true).eq("status", "skipped"),
+    filtered("id", true).eq("status", "failed"),
     supabase.from("staff").select("id, full_name").eq("is_active", true).order("full_name"),
   ]);
+
+  const listParams = { kind, status, template: params.template, staff: staffId };
+  if (outOfRange(error)) redirect(pageHref("/admin/notifications", listParams, 1));
 
   const items = (rows ?? []) as unknown as Notification[];
   const staffList = (people ?? []) as Pick<Staff, "id" | "full_name">[];
 
-  const counted = (status: string) => items.filter((n) => n.status === status).length;
+  const totals: Record<string, number> = { sent: sent.count ?? 0, skipped: skipped.count ?? 0, failed: failed.count ?? 0 };
+  const counted = (s: string) => totals[s] ?? 0;
 
   return (
     <>
       <PageHeader
         title="Notification log"
-        description="Every guest message and staff alert this system has attempted, successful or not. The most recent 200 are shown."
+        description="Every guest message and staff alert this system has attempted, successful or not."
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Shown" value={items.length} />
+        <StatCard label="Matching" value={count ?? 0} />
         <StatCard label="Sent" value={counted("sent")} />
         <StatCard
           label="Not configured"
@@ -146,6 +170,13 @@ export default async function NotificationsPage({
           items={items}
           showRecipientName
           empty="Nothing matches those filters."
+        />
+        <Pagination
+          page={page}
+          total={count ?? 0}
+          path="/admin/notifications"
+          params={listParams}
+          className="pt-4 mt-4 border-t border-slate-100"
         />
       </Card>
 

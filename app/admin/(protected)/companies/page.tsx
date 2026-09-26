@@ -1,8 +1,22 @@
+import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
 import type { Company } from "../../../lib/types";
 import { saveCompany } from "../../rates-actions";
-import { PageHeader, Card, Field, Check, Tag, inputClass, fmtMoney } from "../../components/ui";
+import {
+  PageHeader,
+  Card,
+  Field,
+  Check,
+  Tag,
+  inputClass,
+  fmtMoney,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../components/ui";
 import ActionForm from "../../components/ActionForm";
 
 function CompanyFields({ c }: { c?: Company }) {
@@ -44,10 +58,16 @@ function CompanyFields({ c }: { c?: Company }) {
   );
 }
 
-export default async function CompaniesPage() {
+export default async function CompaniesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await requirePermission("companies.manage");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
-  const { data } = await supabase.from("companies").select("*").order("name");
+  const { data, error, count } = await supabase
+    .from("companies")
+    .select("*", { count: "exact" })
+    .order("name")
+    .range(...pageRange(page));
+  if (outOfRange(error)) redirect(pageHref("/admin/companies", {}, 1));
   const companies = (data ?? []) as Company[];
 
   return (
@@ -90,6 +110,7 @@ export default async function CompaniesPage() {
             </details>
           </Card>
         ))}
+        <Pagination page={page} total={count ?? 0} path="/admin/companies" className="px-1" />
       </div>
     </>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requireAnyPermission, type Session } from "../../../../lib/auth";
 import { can } from "../../../../lib/permissions";
@@ -17,6 +18,11 @@ import {
   inputClass,
   secondaryButtonClass,
   tableHeadClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
 } from "../../../components/ui";
 import ActionForm from "../../../components/ActionForm";
 
@@ -27,21 +33,27 @@ import ActionForm from "../../../components/ActionForm";
  * Approving one pays it out and posts it to the folio in the same step, so
  * the ledger can never disagree with what was actually refunded.
  */
-export default async function RefundsPage() {
+export default async function RefundsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session: Session = await requireAnyPermission(["folio.view", "folio.refund_approve"]);
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const settings = await getSettings();
 
-  const [{ data: rows }, { data: staffRows }] = await Promise.all([
+  // Everything awaiting a decision is always shown; the decided history pages.
+  const select = "*, bookings(reference, contact_name)";
+  const [{ data: pendingRows }, { data: decidedRows, error, count: decidedCount }, { data: staffRows }] = await Promise.all([
+    supabase.from("refund_requests").select(select).eq("status", "pending").order("requested_at", { ascending: false }),
     supabase
       .from("refund_requests")
-      .select("*, bookings(reference, contact_name)")
+      .select(select, { count: "exact" })
+      .neq("status", "pending")
       .order("requested_at", { ascending: false })
-      .limit(100),
+      .range(...pageRange(page)),
     supabase.from("staff").select("id, full_name"),
   ]);
+  if (outOfRange(error)) redirect(pageHref("/admin/billing/refunds", {}, 1));
 
-  const requests = (rows ?? []) as RefundRequest[];
+  const requests = [...(pendingRows ?? []), ...(decidedRows ?? [])] as RefundRequest[];
   const staff = (staffRows ?? []) as Pick<Staff, "id" | "full_name">[];
   const nameOf = (id: string | null) => staff.find((s) => s.id === id)?.full_name ?? "—";
 
@@ -170,6 +182,12 @@ export default async function RefundsPage() {
             </table>
           </div>
         )}
+        <Pagination
+          page={page}
+          total={decidedCount ?? 0}
+          path="/admin/billing/refunds"
+          className="pt-4 mt-4 border-t border-slate-100"
+        />
       </Card>
     </div>
   );

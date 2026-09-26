@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requirePermission } from "../../../../lib/auth";
 import { can } from "../../../../lib/permissions";
@@ -25,6 +26,11 @@ import {
   inputClass,
   secondaryButtonClass,
   tableHeadClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
 } from "../../../components/ui";
 import ActionForm from "../../../components/ActionForm";
 import { TierTag } from "./shared";
@@ -38,21 +44,23 @@ import { TierTag } from "./shared";
  * against a rolling twelve months, so this page is for setting the rules
  * rather than for daily work.
  */
-export default async function LoyaltyPage() {
+export default async function LoyaltyPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await requirePermission("guests.view");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const settings = await getSettings();
   const manage = can(session, "loyalty.manage");
 
-  const [{ data: tierRows }, { data: memberRows }, { data: txRows }] = await Promise.all([
+  // The members table pages; the member and per-tier counts cover everyone.
+  const [{ data: tierRows }, { data: memberRows, error, count: memberCount }, { data: txRows }] = await Promise.all([
     supabase.from("loyalty_tiers").select("*").order("sort_order"),
     supabase
       .from("guests")
-      .select("id, full_name, loyalty_member_no, loyalty_tier, loyalty_joined_on, loyalty_opt_in")
+      .select("id, full_name, loyalty_member_no, loyalty_tier, loyalty_joined_on, loyalty_opt_in", { count: "exact" })
       .eq("loyalty_opt_in", true)
       .is("erased_at", null)
       .order("loyalty_joined_on", { ascending: false })
-      .limit(200),
+      .range(...pageRange(page)),
     supabase
       .from("loyalty_transactions")
       .select("*, guests(full_name, loyalty_member_no), bookings(reference)")
@@ -66,12 +74,20 @@ export default async function LoyaltyPage() {
     "id" | "full_name" | "loyalty_member_no" | "loyalty_tier" | "loyalty_joined_on" | "loyalty_opt_in"
   >[];
   const recent = (txRows ?? []) as LoyaltyTransaction[];
+  if (outOfRange(error)) redirect(pageHref("/admin/guests/loyalty", {}, 1));
 
-  const byTier = new Map<string, number>();
-  for (const m of members) {
-    const key = m.loyalty_tier ?? "—";
-    byTier.set(key, (byTier.get(key) ?? 0) + 1);
-  }
+  // One exact count per tier, so the breakdown is right however many members there are.
+  const tierCounts = await Promise.all(
+    tiers.map((t) =>
+      supabase
+        .from("guests")
+        .select("id", { count: "exact", head: true })
+        .eq("loyalty_opt_in", true)
+        .is("erased_at", null)
+        .eq("loyalty_tier", t.key),
+    ),
+  );
+  const byTier = new Map<string, number>(tiers.map((t, i) => [t.key, tierCounts[i].count ?? 0]));
 
   return (
     <div className="space-y-6">
@@ -81,7 +97,7 @@ export default async function LoyaltyPage() {
           value={settings.loyalty_enabled ? "On" : "Off"}
           hint={settings.loyalty_program_name}
         />
-        <StatCard label="Members" value={members.length} hint="Currently enrolled" />
+        <StatCard label="Members" value={memberCount ?? 0} hint="Currently enrolled" />
         <StatCard label="Tiers" value={tiers.filter((t) => t.is_active).length} hint={`${tiers.length} set up`} />
         <StatCard
           label="Points expire after"
@@ -308,6 +324,7 @@ export default async function LoyaltyPage() {
             </table>
           </div>
         )}
+        <Pagination page={page} total={memberCount ?? 0} path="/admin/guests/loyalty" />
       </Card>
 
       {/* ── Latest movements ── */}

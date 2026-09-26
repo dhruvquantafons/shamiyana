@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Plus } from "lucide-react";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
 import { can } from "../../../lib/permissions";
@@ -12,9 +13,18 @@ import {
   EmptyState,
   fmtDate,
   fmtMoney,
-  inputClass,
   buttonClass,
   nightsBetween,
+  tableHeadClass,
+  tableRowClass,
+  Avatar,
+  SearchInput,
+  FilterChips,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
 } from "../../components/ui";
 
 /** Statuses where a room should already be assigned. */
@@ -31,17 +41,18 @@ const FILTERS: { value: string; label: string }[] = [
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const session = await requirePermission("bookings.view");
-  const { status = "all", q = "" } = await searchParams;
+  const { status = "all", q = "", page: pageRaw } = await searchParams;
+  const page = pageParam(pageRaw);
   const supabase = await createClient();
 
   let query = supabase
     .from("bookings")
-    .select("*, guests(id, full_name, email, phone), room_types(id, name), rooms(id, room_number), rate_plans(id, code, name)")
+    .select("*, guests(id, full_name, email, phone), room_types(id, name), rooms(id, room_number), rate_plans(id, code, name)", { count: "exact" })
     .order("created_at", { ascending: false })
-    .limit(200);
+    .range(...pageRange(page));
 
   if (status !== "all") query = query.eq("status", status);
 
@@ -69,7 +80,9 @@ export default async function BookingsPage({
     query = query.or(clauses.join(","));
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
+  const listParams = { status: status !== "all" ? status : null, q };
+  if (outOfRange(error)) redirect(pageHref("/admin/bookings", listParams, 1));
   const bookings = (data ?? []) as Booking[];
 
   return (
@@ -88,48 +101,17 @@ export default async function BookingsPage({
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {FILTERS.map((f) => {
-          const params = new URLSearchParams();
-          if (f.value !== "all") params.set("status", f.value);
-          if (q) params.set("q", q);
-          const href = `/admin/bookings${params.toString() ? `?${params}` : ""}`;
-          const active = status === f.value;
-          return (
-            <Link
-              key={f.value}
-              href={href}
-              className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                active
-                  ? "bg-yellow-400 text-slate-900 border-yellow-500 font-medium"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-yellow-500"
-              }`}
-            >
-              {f.label}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Search */}
-      <form className="flex gap-2 mb-5" action="/admin/bookings">
-        {status !== "all" && <input type="hidden" name="status" value={status} />}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            name="q"
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+          <FilterChips path="/admin/bookings" param="status" options={FILTERS} current={status} params={{ q }} label="Status" />
+          <SearchInput
+            action="/admin/bookings"
             defaultValue={q}
             placeholder="Reference, name, email, phone or room number"
-            className={`${inputClass} pl-9`}
+            keep={{ status: status !== "all" ? status : null }}
+            className="w-full sm:w-96"
           />
         </div>
-        <button type="submit" className={buttonClass}>
-          Search
-        </button>
-      </form>
-
-      <Card>
         {error ? (
           <EmptyState message={`Could not load bookings: ${error.message}`} />
         ) : bookings.length === 0 ? (
@@ -138,43 +120,46 @@ export default async function BookingsPage({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-100">
-                  <th className="px-5 py-3 font-semibold">Guest</th>
-                  <th className="px-5 py-3 font-semibold">Stay</th>
-                  <th className="px-5 py-3 font-semibold">Room</th>
-                  <th className="px-5 py-3 font-semibold">Room No.</th>
-                  <th className="px-5 py-3 font-semibold">Source</th>
-                  <th className="px-5 py-3 font-semibold">Total</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
+                <tr className={tableHeadClass}>
+                  <th className="px-5 py-3 font-medium">Guest</th>
+                  <th className="px-5 py-3 font-medium">Stay</th>
+                  <th className="px-5 py-3 font-medium">Room</th>
+                  <th className="px-5 py-3 font-medium">Room No.</th>
+                  <th className="px-5 py-3 font-medium">Source</th>
+                  <th className="px-5 py-3 font-medium">Total</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {bookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3">
-                      <Link href={`/admin/bookings/${b.id}`} className="block">
-                        <span className="font-medium text-slate-900">
-                          {b.guests?.full_name || b.contact_name || "Unnamed guest"}
-                        </span>
-                        <span className="block text-[11px] text-slate-500 font-mono">
-                          {b.reference}
+                  <tr key={b.id} className={tableRowClass}>
+                    <td className="px-5 py-3.5">
+                      <Link href={`/admin/bookings/${b.id}`} className="flex items-center gap-3">
+                        <Avatar name={b.guests?.full_name || b.contact_name} />
+                        <span className="min-w-0">
+                          <span className="block font-medium text-slate-900">
+                            {b.guests?.full_name || b.contact_name || "Unnamed guest"}
+                          </span>
+                          <span className="block text-[11px] text-slate-500 font-mono">
+                            {b.reference}
+                          </span>
                         </span>
                       </Link>
                     </td>
-                    <td className="px-5 py-3 whitespace-nowrap text-slate-700">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-700">
                       {fmtDate(b.check_in)} → {fmtDate(b.check_out)}
                       <span className="block text-[11px] text-slate-500">
                         {nightsBetween(b.check_in, b.check_out)} night(s), {b.adults + b.children} guest(s)
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-700">
+                    <td className="px-5 py-3.5 text-slate-700">
                       {b.rooms_count > 1 ? `${b.rooms_count} × ` : ""}
                       {b.room_types?.name ?? "—"}
                       {b.rate_plans && <span className="block text-[11px] text-slate-500">{b.rate_plans.code}</span>}
                     </td>
-                    <td className="px-5 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {b.rooms?.room_number ? (
-                        <span className="inline-block px-2.5 py-1 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium text-xs">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-xs tabular-nums">
                           {b.rooms.room_number}
                         </span>
                       ) : NEEDS_ROOM.includes(b.status) ? (
@@ -183,13 +168,13 @@ export default async function BookingsPage({
                         <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-slate-700 whitespace-nowrap">
                       {BOOKING_SOURCE_LABELS[b.source]}
                     </td>
-                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-slate-900 font-medium whitespace-nowrap tabular-nums">
                       {fmtMoney(b.total_amount)}
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3.5">
                       <StatusPill status={b.status} />
                     </td>
                   </tr>
@@ -198,6 +183,7 @@ export default async function BookingsPage({
             </table>
           </div>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/bookings" params={listParams} />
       </Card>
     </>
   );
