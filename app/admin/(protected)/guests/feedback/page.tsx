@@ -1,35 +1,56 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requirePermission } from "../../../../lib/auth";
 import type { GuestFeedback } from "../../../../lib/types";
-import { Card, EmptyState, StatCard, fmtDateTime } from "../../../components/ui";
+import {
+  Card,
+  EmptyState,
+  StatCard,
+  fmtDateTime,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../../components/ui";
 
 type Row = GuestFeedback & { guests: { id: string; full_name: string } | null; bookings: { reference: string } | null };
 
 const ASPECTS = ["room", "service", "cleanliness", "food"] as const;
 
-export default async function FeedbackListPage() {
+export default async function FeedbackListPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await requirePermission("guests.view");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
-  const [{ data }, { count: waiting }] = await Promise.all([
+  // The averages cover the 200 most recent responses; the list below pages.
+  const [{ data, error, count }, { data: scoreRows }, { count: waiting }] = await Promise.all([
     supabase
       .from("guest_feedback")
-      .select("*, guests(id, full_name), bookings(reference)")
+      .select("*, guests(id, full_name), bookings(reference)", { count: "exact" })
+      .not("submitted_at", "is", null)
+      .order("submitted_at", { ascending: false })
+      .range(...pageRange(page)),
+    supabase
+      .from("guest_feedback")
+      .select("overall, room, service, cleanliness, food")
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
       .limit(200),
     supabase.from("guest_feedback").select("id", { count: "exact", head: true }).is("submitted_at", null).not("requested_at", "is", null),
   ]);
+  if (outOfRange(error)) redirect(pageHref("/admin/guests/feedback", {}, 1));
   const rows = (data ?? []) as Row[];
+  const scored = (scoreRows ?? []) as Pick<GuestFeedback, "overall" | (typeof ASPECTS)[number]>[];
   const avg = (k: "overall" | (typeof ASPECTS)[number]) => {
-    const vals = rows.map((r) => r[k]).filter((v): v is number => !!v);
+    const vals = scored.map((r) => r[k]).filter((v): v is number => !!v);
     return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : "—";
   };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <StatCard label="Overall" value={avg("overall")} hint={`${rows.length} response(s)`} />
+        <StatCard label="Overall" value={avg("overall")} hint={`${scored.length} response(s)`} />
         <StatCard label="Room" value={avg("room")} />
         <StatCard label="Service" value={avg("service")} />
         <StatCard label="Cleanliness" value={avg("cleanliness")} />
@@ -68,6 +89,7 @@ export default async function FeedbackListPage() {
             ))}
           </ul>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/guests/feedback" />
       </Card>
     </div>
   );

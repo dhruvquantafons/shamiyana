@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { requireAnyPermission } from "../../../../lib/auth";
 import { can } from "../../../../lib/permissions";
@@ -7,20 +8,39 @@ import { getSettings } from "../../../../lib/settings";
 import type { Asset, Room } from "../../../../lib/types";
 import { ASSET_CATEGORY_LABELS } from "../../../../lib/types";
 import { saveAsset } from "../../../maintenance-actions";
-import { Card, EmptyState, Tag, secondaryButtonClass, tableHeadClass, fmtDate } from "../../../components/ui";
+import {
+  Card,
+  EmptyState,
+  Tag,
+  secondaryButtonClass,
+  tableHeadClass,
+  fmtDate,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../../components/ui";
 import ActionForm from "../../../components/ActionForm";
 import AssetFields from "./AssetFields";
 import { OPEN_STATUSES } from "../shared";
 
-export default async function AssetsPage() {
+export default async function AssetsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await requireAnyPermission(["maintenance.work", "maintenance.manage"]);
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
   const today = todayIn((await getSettings()).timezone);
-  const [{ data }, { data: rooms }, { data: open }] = await Promise.all([
-    supabase.from("assets").select("*, rooms(room_number)").order("is_active", { ascending: false }).order("name"),
+  const [{ data, error, count }, { data: rooms }, { data: open }] = await Promise.all([
+    supabase
+      .from("assets")
+      .select("*, rooms(room_number)", { count: "exact" })
+      .order("is_active", { ascending: false })
+      .order("name")
+      .range(...pageRange(page)),
     supabase.from("rooms").select("id, room_number").order("room_number"),
     supabase.from("maintenance_tickets").select("asset_id").in("status", OPEN_STATUSES).not("asset_id", "is", null),
   ]);
+  if (outOfRange(error)) redirect(pageHref("/admin/maintenance/assets", {}, 1));
   const assets = (data ?? []) as Asset[];
   const openCount = (id: string) => (open ?? []).filter((t) => t.asset_id === id).length;
 
@@ -84,6 +104,7 @@ export default async function AssetsPage() {
             </table>
           </div>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/maintenance/assets" />
       </Card>
     </div>
   );

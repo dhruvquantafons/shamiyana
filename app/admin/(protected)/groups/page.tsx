@@ -1,19 +1,34 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
 import type { BookingGroup } from "../../../lib/types";
-import { PageHeader, Card, EmptyState, fmtDate, buttonClass, tableHeadClass } from "../../components/ui";
+import {
+  PageHeader,
+  Card,
+  EmptyState,
+  fmtDate,
+  buttonClass,
+  tableHeadClass,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../components/ui";
 
-export default async function GroupsPage() {
+export default async function GroupsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   await requirePermission("bookings.groups");
+  const page = pageParam((await searchParams).page);
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error, count } = await supabase
     .from("booking_groups")
-    .select("*, companies(name), bookings(id, status, contact_name)")
+    .select("*, companies(name), bookings(id, status, contact_name)", { count: "exact" })
     .order("check_in", { ascending: false })
-    .limit(100);
+    .range(...pageRange(page));
+  if (outOfRange(error)) redirect(pageHref("/admin/groups", {}, 1));
 
   type Row = BookingGroup & {
     companies: { name: string } | null;
@@ -75,6 +90,7 @@ export default async function GroupsPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/groups" />
       </Card>
     </>
   );

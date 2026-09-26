@@ -1,25 +1,40 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
 import { can } from "../../../lib/permissions";
 import type { Guest, GuestStats, GuestTag } from "../../../lib/types";
 import { GUEST_TAGS, guestTags } from "../../../lib/types";
-import { Card, EmptyState, inputClass, buttonClass, tableHeadClass, fmtDate, fmtMoney } from "../../components/ui";
+import {
+  Card,
+  EmptyState,
+  inputClass,
+  buttonClass,
+  tableHeadClass,
+  fmtDate,
+  fmtMoney,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
+} from "../../components/ui";
 import { GuestTags } from "./shared";
 
-export default async function GuestsPage({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string }> }) {
+export default async function GuestsPage({ searchParams }: { searchParams: Promise<{ q?: string; tag?: string; page?: string }> }) {
   const session = await requirePermission("guests.view");
   const seesSpend = can(session, "folio.view");
-  const { q = "", tag } = await searchParams;
+  const { q = "", tag, page: pageRaw } = await searchParams;
+  const page = pageParam(pageRaw);
   const activeTag = (GUEST_TAGS as readonly string[]).includes(tag ?? "") ? (tag as GuestTag) : null;
   const supabase = await createClient();
 
   let query = supabase
     .from("guests")
-    .select("id, full_name, email, phone, tags, company_id, erased_at, nationality, updated_at")
+    .select("id, full_name, email, phone, tags, company_id, erased_at, nationality, updated_at", { count: "exact" })
     .is("erased_at", null)
     .order("updated_at", { ascending: false })
-    .limit(200);
+    .range(...pageRange(page));
   const term = q.replace(/[%,()]/g, "").trim();
   if (term) query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
   if (activeTag === "VIP" || activeTag === "Blacklisted") query = query.contains("tags", [activeTag]);
@@ -29,7 +44,9 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
     query = query.in("id", (repeat ?? []).map((r) => r.guest_id));
   }
 
-  const { data } = await query;
+  const { data, error, count } = await query;
+  const listParams = { q: term, tag: activeTag };
+  if (outOfRange(error)) redirect(pageHref("/admin/guests", listParams, 1));
   const guests = (data ?? []) as Pick<Guest, "id" | "full_name" | "email" | "phone" | "tags" | "company_id" | "nationality">[];
   const { data: statRows } = guests.length
     ? await supabase.from("guest_stats").select("*").in("guest_id", guests.map((g) => g.id))
@@ -110,8 +127,8 @@ export default async function GuestsPage({ searchParams }: { searchParams: Promi
             </table>
           </div>
         )}
+        <Pagination page={page} total={count ?? 0} path="/admin/guests" params={listParams} />
       </Card>
-      {guests.length === 200 && <p className="text-xs text-slate-500">Showing the 200 most recently updated. Search to find others.</p>}
     </div>
   );
 }

@@ -64,17 +64,20 @@ export default async function TapeChartPage({
             <Link href={link(addDays(start, days))} className={`${secondaryButtonClass} !px-2`} aria-label="Later">
               <ChevronRight className="w-4 h-4" />
             </Link>
-            {SPANS.map((s) => (
-              <Link
-                key={s}
-                href={link(start, s)}
-                className={`text-xs px-2.5 py-1.5 rounded-full border ${
-                  s === days ? "bg-yellow-400 text-slate-900 border-yellow-500" : "bg-white border-slate-200 text-slate-700"
-                }`}
-              >
-                {s}d
-              </Link>
-            ))}
+            <div className="inline-flex items-center gap-0.5 p-1 bg-slate-100 rounded-lg">
+              {SPANS.map((s) => (
+                <Link
+                  key={s}
+                  href={link(start, s)}
+                  aria-current={s === days ? "true" : undefined}
+                  className={`text-xs px-3 py-1.5 rounded-md transition duration-150 ease-out ${
+                    s === days ? "bg-white text-slate-900 font-medium shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {s}d
+                </Link>
+              ))}
+            </div>
           </div>
         }
       />

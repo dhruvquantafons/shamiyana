@@ -5,29 +5,34 @@ import type { Booking, BookingStatus, Room, RoomBlock, RoomType } from "../../li
 import { BOOKING_STATUS_LABELS, roomBoardLabel } from "../../lib/types";
 import { addDays, dayOfWeek, daysBetween } from "../../lib/dates";
 
+/**
+ * Stay bars are solid tints of the same hue as the booking's status pill,
+ * with a darker edge on the leading side so short stays still read as a
+ * start.
+ */
 const BAR: Record<BookingStatus, string> = {
-  tentative: "bg-amber-100 border-amber-300 text-amber-900",
-  confirmed: "bg-emerald-100 border-emerald-300 text-emerald-900",
-  checked_in: "bg-blue-100 border-blue-300 text-blue-900",
-  checked_out: "bg-slate-100 border-slate-300 text-slate-600",
-  cancelled: "bg-rose-50 border-rose-200 text-rose-700",
-  no_show: "bg-orange-50 border-orange-200 text-orange-800",
-  waitlisted: "bg-violet-50 border-violet-200 text-violet-800",
+  tentative: "bg-amber-100 border-amber-100 text-amber-900 shadow-[inset_3px_0_0_var(--color-amber-500)]",
+  confirmed: "bg-lime-100 border-lime-100 text-lime-900 shadow-[inset_3px_0_0_var(--color-lime-500)]",
+  checked_in: "bg-emerald-100 border-emerald-100 text-emerald-900 shadow-[inset_3px_0_0_var(--color-emerald-600)]",
+  checked_out: "bg-slate-100 border-slate-100 text-slate-600 shadow-[inset_3px_0_0_var(--color-slate-300)]",
+  cancelled: "bg-rose-50 border-rose-100 text-rose-700",
+  no_show: "bg-orange-50 border-orange-100 text-orange-800",
+  waitlisted: "bg-violet-50 border-violet-100 text-violet-800",
 };
 
 /** Hatching used for out-of-order / out-of-service blocks and their legend swatch. */
-const BLOCKED = "bg-[repeating-linear-gradient(45deg,#eaeaea,#eaeaea_4px,#f7f7f7_4px,#f7f7f7_8px)]";
+const BLOCKED = "bg-[repeating-linear-gradient(45deg,#eceeed,#eceeed_4px,#f7f8f8_4px,#f7f8f8_8px)]";
 
 /** Status key shown above the chart, identical wherever the chart appears. */
 export function TapeChartLegend() {
   return (
-    <div className="flex flex-wrap gap-3 mb-4 text-[11px]">
+    <div className="flex flex-wrap gap-2 mb-4 text-[11px] font-medium">
       {(["tentative", "confirmed", "checked_in", "checked_out"] as BookingStatus[]).map((s) => (
-        <span key={s} className={`px-2 py-0.5 rounded border ${BAR[s]}`}>
+        <span key={s} className={`pl-2.5 pr-2 py-1 rounded-md border ${BAR[s]}`}>
           {BOOKING_STATUS_LABELS[s]}
         </span>
       ))}
-      <span className={`px-2 py-0.5 rounded border ${BLOCKED} border-stone-300 text-stone-700`}>Blocked</span>
+      <span className={`px-2 py-1 rounded-md border ${BLOCKED} border-stone-200 text-stone-700`}>Blocked</span>
     </div>
   );
 }
@@ -98,10 +103,10 @@ export default function TapeChart({
               <div
                 key={d}
                 className={`text-center py-2 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${
-                  d === today ? "bg-yellow-50 shadow-[inset_0_-2px_0_var(--color-yellow-400)]" : ""
+                  d === today ? "bg-yellow-100 shadow-[inset_0_-2px_0_var(--color-yellow-600)]" : ""
                 }`}
               >
-                <p className={`text-[10px] uppercase tracking-wide leading-none ${d === today ? "text-yellow-700 font-medium" : "text-slate-500"}`}>
+                <p className={`text-[10px] uppercase tracking-wide leading-none ${d === today ? "text-yellow-800 font-semibold" : "text-slate-500"}`}>
                   {date.toLocaleDateString("en-IN", { weekday: "short" })}
                 </p>
                 <p className="text-[13px] font-medium text-slate-900 tabular-nums leading-none mt-1.5">{date.getDate()}</p>
@@ -113,7 +118,7 @@ export default function TapeChart({
 
       {roomList.map(({ type, rooms: typeRooms, unassigned }) => (
         <div key={type.id}>
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-[11px] font-medium text-slate-500 uppercase tracking-wider sticky left-0">
+          <div className="admin-eyebrow px-4 py-2 bg-slate-50 border-b border-slate-100 sticky left-0">
             {type.name} · {typeRooms.length} room(s)
           </div>
 
@@ -129,13 +134,13 @@ export default function TapeChart({
                 <div className="grid flex-1" style={grid}>
                   {dates.map((d, i) => {
                     const weekend = [5, 6].includes(dayOfWeek(d));
-                    const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-50/60" : weekend ? "bg-slate-50" : ""}`;
+                    const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-100/50" : weekend ? "bg-slate-50" : ""}`;
                     return canCreate && d >= today ? (
                       <Link
                         key={d}
                         href={`/admin/bookings/new?check_in=${d}&room_type=${type.id}`}
                         title={`New booking from ${d}`}
-                        className={`${cls} hover:bg-yellow-50`}
+                        className={`${cls} hover:bg-emerald-50`}
                         style={{ gridColumn: `${i + 1} / ${i + 2}`, gridRow: 1 }}
                       />
                     ) : (
@@ -148,7 +153,7 @@ export default function TapeChart({
                       <div
                         key={bl.id}
                         title={`${bl.kind === "out_of_order" ? "Out of order" : "Out of service"}: ${bl.reason}`}
-                        className={`relative z-10 m-1 rounded-md border border-stone-300 ${BLOCKED} text-[10px] text-stone-700 px-1.5 flex items-center truncate`}
+                        className={`relative z-10 m-1 rounded-md border border-stone-200 ${BLOCKED} text-[10px] text-stone-700 px-1.5 flex items-center truncate`}
                         style={{ gridColumn: `${s.from + 1} / ${s.to + 1}`, gridRow: 1 }}
                       >
                         {bl.reason}
@@ -163,7 +168,7 @@ export default function TapeChart({
                         key={b.id}
                         href={`/admin/bookings/${b.id}`}
                         title={`${b.contact_name} · ${b.reference} · ${BOOKING_STATUS_LABELS[b.status]} · ${b.check_in} → ${b.check_out}`}
-                        className={`relative z-10 m-1 flex items-center truncate border px-1.5 text-[11px] font-medium ${BAR[b.status]} ${
+                        className={`relative z-10 m-1 flex items-center truncate border pl-2 pr-1.5 text-[11px] font-medium hover:brightness-[0.97] ${BAR[b.status]} ${
                           s.clipStart ? "rounded-l-none border-l-0" : "rounded-l-md"
                         } ${s.clipEnd ? "rounded-r-none border-r-0" : "rounded-r-md"}`}
                         style={{ gridColumn: `${s.from + 1} / ${s.to + 1}`, gridRow: 1 }}
@@ -187,13 +192,13 @@ export default function TapeChart({
               <div className="grid flex-1" style={grid}>
                 {dates.map((d, i) => {
                   const weekend = [5, 6].includes(dayOfWeek(d));
-                  const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-50/60" : weekend ? "bg-slate-50" : ""}`;
+                  const cls = `min-h-9 border-slate-100 ${i < days - 1 ? "border-r" : ""} ${d === today ? "bg-yellow-100/50" : weekend ? "bg-slate-50" : ""}`;
                   return canCreate && d >= today ? (
                     <Link
                       key={d}
                       href={`/admin/bookings/new?check_in=${d}&room_type=${type.id}`}
                       title={`New booking from ${d}`}
-                      className={`${cls} hover:bg-yellow-50`}
+                      className={`${cls} hover:bg-emerald-50`}
                       style={{ gridColumn: `${i + 1} / ${i + 2}`, gridRow: 1 }}
                     />
                   ) : (
@@ -208,7 +213,7 @@ export default function TapeChart({
                       key={b.id}
                       href={`/admin/bookings/${b.id}`}
                       title={`${b.contact_name} · ${b.reference} · ${BOOKING_STATUS_LABELS[b.status]} · ${b.check_in} → ${b.check_out}`}
-                      className={`relative z-10 m-1 flex items-center truncate border px-1.5 text-[11px] font-medium ${BAR[b.status]} ${
+                      className={`relative z-10 m-1 flex items-center truncate border pl-2 pr-1.5 text-[11px] font-medium hover:brightness-[0.97] ${BAR[b.status]} ${
                         s.clipStart ? "rounded-l-none border-l-0" : "rounded-l-md"
                       } ${s.clipEnd ? "rounded-r-none border-r-0" : "rounded-r-md"}`}
                       style={{ gridColumn: `${s.from + 1} / ${s.to + 1}`, gridRow: 1 }}

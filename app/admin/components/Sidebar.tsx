@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   ConciergeBell,
@@ -37,8 +37,9 @@ import type { Permission } from "../../lib/permissions";
 import { signOut } from "../actions";
 import PropertySwitcher from "./PropertySwitcher";
 import BrandMark from "./BrandMark";
+import { Avatar } from "./ui";
 
-type NavItem = {
+export type NavItem = {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
@@ -47,7 +48,7 @@ type NavItem = {
   any: Permission[];
 };
 
-const NAV: { heading?: string; items: NavItem[] }[] = [
+export const NAV: { heading?: string; items: NavItem[] }[] = [
   {
     items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, any: ["dashboard.view"] }],
   },
@@ -158,55 +159,15 @@ export default function Sidebar({
   const allowed = (item: NavItem) =>
     item.any.length === 0 || access.isSuperuser || item.any.some((p) => access.permissions.includes(p));
 
-  const nav = (
-    <nav className="space-y-7">
-      {NAV.map((section, i) => {
-        const items = section.items.filter(allowed);
-        if (items.length === 0) return null;
-        return (
-          <div key={section.heading ?? i} className="space-y-0.5">
-            {section.heading && (
-              <p className="px-3 pb-1.5 text-[11px] font-medium text-slate-400">{section.heading}</p>
-            )}
-            {items.map(({ href, label, icon: Icon, exact }) => {
-              const active = exact ? pathname === href : pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  aria-current={active ? "page" : undefined}
-                  className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] transition-colors ${
-                    active
-                      ? "relative bg-yellow-50 text-slate-900 font-medium before:absolute before:left-0 before:inset-y-2 before:w-0.5 before:rounded-full before:bg-yellow-400"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  <Icon
-                    strokeWidth={1.6}
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      active ? "text-yellow-600" : "text-slate-400 group-hover:text-yellow-600"
-                    }`}
-                  />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        );
-      })}
-    </nav>
+  const sections = NAV.map((section) => ({ ...section, items: section.items.filter(allowed) })).filter(
+    (section) => section.items.length > 0,
   );
+  const nav = <NavList sections={sections} pathname={pathname} onNavigate={() => setOpen(false)} />;
 
   const footer = (
     <div className="border-t border-slate-200 pt-4 mt-6 space-y-0.5">
-      <div className="flex items-center gap-3 px-3 pb-3">
-        <span
-          aria-hidden="true"
-          className="w-9 h-9 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center"
-        >
-          {(staff.full_name || staff.email || "?").trim().charAt(0).toUpperCase()}
-        </span>
+      <div className="flex items-center gap-3 mb-2 px-2.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+        <Avatar name={staff.full_name || staff.email} size="md" />
         <span className="min-w-0">
           <span className="block text-sm text-slate-900 font-medium truncate">{staff.full_name || staff.email}</span>
           <span className="block text-[11px] text-slate-500 truncate">
@@ -218,17 +179,17 @@ export default function Sidebar({
       <Link
         href="/admin/security"
         onClick={() => setOpen(false)}
-        className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+        className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors duration-150"
       >
-        <KeyRound strokeWidth={1.6} className="w-4 h-4 shrink-0 text-slate-400" />
+        <KeyRound strokeWidth={1.75} className="w-[18px] h-[18px] shrink-0 text-slate-400" />
         <span>Password &amp; 2FA</span>
       </Link>
       <form action={signOut}>
         <button
           type="submit"
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors duration-150 cursor-pointer"
         >
-          <LogOut strokeWidth={1.6} className="w-4 h-4 shrink-0 text-slate-400" />
+          <LogOut strokeWidth={1.75} className="w-[18px] h-[18px] shrink-0 text-slate-400" />
           <span>Sign out</span>
         </button>
       </form>
@@ -239,7 +200,7 @@ export default function Sidebar({
     <Link href="/admin" className="flex items-center gap-2.5 px-2 py-1">
       <BrandMark className="w-10 h-10 shrink-0" />
       <span>
-        <span className="admin-display block text-xl text-slate-900 leading-none">Shamiyana</span>
+        <span className="admin-display block text-lg text-slate-900 leading-none">Shamiyana</span>
         <span className="block text-[9.5px] uppercase tracking-[0.18em] text-slate-500 leading-tight mt-1.5">Property management</span>
       </span>
     </Link>
@@ -257,7 +218,7 @@ export default function Sidebar({
       {open && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="absolute inset-0 bg-slate-900/25 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-          <aside className="relative w-72 bg-white p-4 flex flex-col justify-between overflow-y-auto shadow-2xl">
+          <aside className="relative w-72 bg-white p-4 flex flex-col justify-between overflow-y-auto shadow-2xl rounded-r-2xl">
             <div className="space-y-6">
               <div className="flex items-start justify-between">
                 {brand}
@@ -273,8 +234,8 @@ export default function Sidebar({
         </div>
       )}
 
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 px-4 py-6 flex-col justify-between overflow-y-auto print:hidden">
-        <div className="space-y-8">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 px-4 py-5 flex-col justify-between overflow-y-auto print:hidden">
+        <div className="space-y-7">
           <div className="space-y-4">
             {brand}
             <PropertySwitcher properties={properties} current={currentProperty} />
@@ -284,5 +245,90 @@ export default function Sidebar({
         {footer}
       </aside>
     </>
+  );
+}
+
+/**
+ * The grouped nav list with a sliding highlight behind the active item.
+ *
+ * The highlight is one absolutely positioned element that is moved to the
+ * active link after each navigation, so it glides between items instead of
+ * blinking from one to the next. It is positioned directly in a layout
+ * effect (no state, no re-render). Until it has been placed the active link
+ * paints its own background, so there is never a frame without one. The
+ * sidebar renders this twice (drawer and desktop rail); each instance
+ * measures its own links.
+ */
+function NavList({
+  sections,
+  pathname,
+  onNavigate,
+}: {
+  sections: { heading?: string; items: NavItem[] }[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+  const markRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const mark = markRef.current;
+    if (!nav || !mark) return;
+    const place = () => {
+      const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!active) {
+        mark.style.opacity = "0";
+        return;
+      }
+      mark.style.opacity = "1";
+      mark.style.height = `${active.offsetHeight}px`;
+      mark.style.transform = `translateY(${active.offsetTop}px)`;
+      // Only animate moves after the first placement.
+      if (nav.dataset.ready !== "true") requestAnimationFrame(() => (nav.dataset.ready = "true"));
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [pathname]);
+
+  return (
+    <nav ref={navRef} className="group/nav relative space-y-6">
+      <span
+        ref={markRef}
+        aria-hidden="true"
+        className="absolute left-0 right-0 top-0 rounded-lg bg-emerald-100 opacity-0 pointer-events-none group-data-[ready=true]/nav:transition-[transform,height,opacity] group-data-[ready=true]/nav:duration-300 group-data-[ready=true]/nav:ease-[cubic-bezier(0.22,1,0.36,1)]"
+      />
+      {sections.map((section, i) => (
+        <div key={section.heading ?? i} className="space-y-0.5">
+          {section.heading && <p className="admin-eyebrow px-3 pb-1.5">{section.heading}</p>}
+          {section.items.map(({ href, label, icon: Icon, exact }) => {
+            const active = exact ? pathname === href : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                aria-current={active ? "page" : undefined}
+                className={`group relative z-10 flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] transition-colors duration-150 ease-out ${
+                  active
+                    ? "text-emerald-800 font-medium bg-emerald-100 group-data-[ready=true]/nav:bg-transparent"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <Icon
+                  strokeWidth={1.75}
+                  className={`w-[18px] h-[18px] shrink-0 transition-colors duration-150 ${
+                    active ? "text-emerald-600" : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
   );
 }

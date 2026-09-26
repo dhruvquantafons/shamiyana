@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Accessibility, CigaretteOff, Cigarette } from "lucide-react";
 import { createClient } from "../../../lib/supabase/server";
 import { requirePermission } from "../../../lib/auth";
@@ -19,6 +20,14 @@ import {
   fmtDate,
   fmtDateTime,
   tableHeadClass,
+  tableRowClass,
+  SearchInput,
+  FilterChips,
+  Pagination,
+  pageParam,
+  pageRange,
+  pageHref,
+  outOfRange,
 } from "../../components/ui";
 import ActionForm from "../../components/ActionForm";
 import LiveRefresh from "../../components/LiveRefresh";
@@ -30,18 +39,36 @@ import AvailabilityCalendar from "./AvailabilityCalendar";
 const MONTHS_BACK = 3;
 const MONTHS_FORWARD = 12;
 
-const TILE: Record<string, string> = {
-  "Vacant Clean": "border-emerald-300 bg-emerald-50",
-  "Vacant Dirty": "border-amber-300 bg-amber-50",
-  Occupied: "border-blue-300 bg-blue-50",
-  "Out of Order": "border-rose-300 bg-rose-50",
-  "Out of Service": "border-stone-300 bg-stone-100",
-};
+/**
+ * Board states: the URL value, the label roomBoardLabel() gives, the tile's
+ * tint with a coloured leading edge, and the legend swatch in the same hue.
+ */
+const BOARD = [
+  { value: "vacant_clean", label: "Vacant Clean", tile: "bg-white border-slate-200 shadow-[inset_3px_0_0_var(--color-emerald-300)]", swatch: "bg-emerald-300" },
+  { value: "vacant_dirty", label: "Vacant Dirty", tile: "bg-amber-50 border-amber-200 shadow-[inset_3px_0_0_var(--color-amber-500)]", swatch: "bg-amber-500" },
+  { value: "occupied", label: "Occupied", tile: "bg-emerald-50 border-emerald-200 shadow-[inset_3px_0_0_var(--color-emerald-600)]", swatch: "bg-emerald-600" },
+  { value: "out_of_order", label: "Out of Order", tile: "bg-rose-50 border-rose-200 shadow-[inset_3px_0_0_var(--color-rose-500)]", swatch: "bg-rose-500" },
+  { value: "out_of_service", label: "Out of Service", tile: "bg-slate-50 border-slate-200 shadow-[inset_3px_0_0_var(--color-slate-400)]", swatch: "bg-slate-400" },
+] as const;
+type BoardValue = (typeof BOARD)[number]["value"];
+const TILE: Record<string, string> = Object.fromEntries(BOARD.map((b) => [b.label, b.tile]));
+
+/** Rooms per page: four full rows of the six-across board. */
+const ROOMS_PAGE = 24;
 
 const HK_FLOW: HousekeepingStatus[] = ["dirty", "cleaning", "clean", "inspected"];
 
-export default async function RoomsPage() {
+export default async function RoomsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string; type?: string; page?: string }>;
+}) {
   const session = await requirePermission("rooms.view");
+  const params = await searchParams;
+  const page = pageParam(params.page);
+  const status: BoardValue | "all" = BOARD.some((b) => b.value === params.status) ? (params.status as BoardValue) : "all";
+  const typeId = params.type && /^[0-9a-f-]{36}$/i.test(params.type) ? params.type : null;
+  const term = (params.q ?? "").replace(/[%,()]/g, "").trim();
   const supabase = await createClient();
   const settings = await getSettings();
   const today = todayIn(settings.timezone);
@@ -51,8 +78,35 @@ export default async function RoomsPage() {
   const windowEnd = monthEndOf(shiftMonth(thisMonth, MONTHS_FORWARD));
   const seesBookings = can(session, "bookings.view") || can(session, "frontdesk.view");
 
-  const [{ data: rooms }, { data: roomTypes }, { data: booked }, { data: inHouse }, { data: blocks }] =
-    await Promise.all([
+  // The board and the inventory list show one filtered page of rooms. The
+  // full list below still feeds the counts, the calendar and every form.
+  // Room type names live on the joined table, which .or() cannot reach, so
+  // matching types are resolved to ids first (as Bookings does for rooms).
+  let listQuery = supabase
+    .from("rooms")
+    .select("*, room_types(name, slug)", { count: "exact" })
+    .order("room_number")
+    .range(...pageRange(page, ROOMS_PAGE));
+  if (status === "occupied" || status === "out_of_order" || status === "out_of_service") listQuery = listQuery.eq("status", status);
+  if (status === "vacant_clean") listQuery = listQuery.eq("status", "available").in("housekeeping_status", ["clean", "inspected"]);
+  if (status === "vacant_dirty") listQuery = listQuery.eq("status", "available").in("housekeeping_status", ["dirty", "cleaning"]);
+  if (typeId) listQuery = listQuery.eq("room_type_id", typeId);
+  if (term) {
+    const { data: matchedTypes } = await supabase.from("room_types").select("id").ilike("name", `%${term}%`);
+    const clauses = [`room_number.ilike.%${term}%`];
+    const typeIds = (matchedTypes ?? []).map((t) => t.id);
+    if (typeIds.length > 0) clauses.push(`room_type_id.in.(${typeIds.join(",")})`);
+    listQuery = listQuery.or(clauses.join(","));
+  }
+
+  const [
+    { data: rooms },
+    { data: roomTypes },
+    { data: booked },
+    { data: inHouse },
+    { data: blocks },
+    { data: pageRows, error: listError, count: listCount },
+  ] = await Promise.all([
       supabase.from("rooms").select("*, room_types(name, slug)").order("room_number"),
       supabase.from("room_types").select("*").order("sort_order"),
       supabase
@@ -71,7 +125,13 @@ export default async function RoomsPage() {
         .select("*, rooms(room_number), maintenance_tickets(id, reference, status)")
         .is("released_at", null)
         .order("start_date"),
+      listQuery,
     ]);
+
+  const listParams = { q: term, status: status === "all" ? null : status, type: typeId };
+  if (outOfRange(listError)) redirect(pageHref("/admin/rooms", listParams, 1));
+  const pageRooms = (pageRows ?? []) as Room[];
+  const filtered = Boolean(term || typeId || status !== "all");
 
   const roomList = (rooms ?? []) as Room[];
   const types = (roomTypes ?? []) as RoomType[];
@@ -85,7 +145,7 @@ export default async function RoomsPage() {
   const blockToday = (roomId: string) =>
     blockList.find((b) => b.room_id === roomId && b.start_date <= today && (b.end_date === null || b.end_date >= today));
 
-  const floors = [...new Set(roomList.map((r) => r.floor))].sort((a, b) => (a ?? -1) - (b ?? -1));
+  const floors = [...new Set(pageRooms.map((r) => r.floor))].sort((a, b) => (a ?? -1) - (b ?? -1));
   const counts = roomList.reduce<Record<string, number>>((acc, r) => {
     const label = roomBoardLabel(r);
     acc[label] = (acc[label] ?? 0) + 1;
@@ -101,17 +161,61 @@ export default async function RoomsPage() {
       <PageHeader title="Rooms" description="Room status board, blocks, inventory and availability." />
 
       <div className="space-y-6">
+        {/* ── Find rooms: filters the status board and the inventory list below ── */}
+        {roomList.length > 0 && (
+          <Card className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <FilterChips
+                path="/admin/rooms"
+                param="status"
+                label="Room status"
+                current={status}
+                params={{ q: term, type: typeId }}
+                options={[
+                  { value: "all", label: "All rooms", count: roomList.length },
+                  ...BOARD.map((b) => ({ value: b.value, label: b.label, count: counts[b.label] ?? 0, swatch: b.swatch })),
+                ]}
+              />
+              <SearchInput
+                action="/admin/rooms"
+                defaultValue={term}
+                placeholder="Room number or room type"
+                keep={{ status: status === "all" ? null : status, type: typeId }}
+                className="w-full sm:w-80"
+              />
+            </div>
+            {types.length > 1 && (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="admin-eyebrow">Room type</span>
+                <FilterChips
+                  path="/admin/rooms"
+                  param="type"
+                  label="Room type"
+                  current={typeId ?? "all"}
+                  params={{ q: term, status: status === "all" ? null : status }}
+                  options={[
+                    { value: "all", label: "All types" },
+                    ...types.map((t) => ({
+                      value: t.id,
+                      label: t.name,
+                      count: roomList.filter((r) => r.room_type_id === t.id).length,
+                    })),
+                  ]}
+                />
+              </div>
+            )}
+          </Card>
+        )}
+
         {/* ── Status board ── */}
         <Card className="p-5">
           <SectionTitle
             action={
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                {Object.keys(TILE).map((label) => (
-                  <span key={label} className={`px-2 py-0.5 rounded border ${TILE[label]}`}>
-                    {label} {counts[label] ?? 0}
-                  </span>
-                ))}
-              </div>
+              filtered ? (
+                <span className="text-xs text-slate-500 tabular-nums">
+                  {listCount ?? 0} of {roomList.length} rooms match
+                </span>
+              ) : null
             }
           >
             Room status
@@ -119,22 +223,24 @@ export default async function RoomsPage() {
 
           {roomList.length === 0 ? (
             <EmptyState message="No rooms added yet." />
+          ) : pageRooms.length === 0 ? (
+            <EmptyState message="No rooms match this view." />
           ) : (
             <div className="space-y-4">
               {floors.map((floor) => (
                 <div key={String(floor)}>
-                  <p className="text-xs font-medium text-slate-500 mb-2">
+                  <p className="admin-eyebrow mb-2">
                     {floor === null ? "No floor set" : `Floor ${floor}`}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {roomList
+                    {pageRooms
                       .filter((r) => r.floor === floor)
                       .map((room) => {
                         const label = roomBoardLabel(room);
                         const occupant = occupantByRoom.get(room.id);
                         const block = blockToday(room.id);
                         return (
-                          <div key={room.id} className={`rounded-lg border p-2.5 ${TILE[label]}`}>
+                          <div key={room.id} className={`rounded-xl border p-3 transition-shadow duration-200 hover:shadow-[0_6px_18px_-10px_rgb(17_20_18/0.2)] ${TILE[label]}`}>
                             <div className="flex items-start justify-between gap-1">
                               <p className="text-base font-semibold leading-none text-slate-900">{room.room_number}</p>
                               <span className="flex gap-0.5 text-slate-600">
@@ -146,10 +252,10 @@ export default async function RoomsPage() {
                                 )}
                               </span>
                             </div>
-                            <p className="text-[10px] text-slate-700 mt-1 truncate">{room.room_types?.name}</p>
-                            <p className="text-[11px] font-medium mt-1">{label}</p>
+                            <p className="text-[10.5px] text-slate-500 mt-1 truncate">{room.room_types?.name}</p>
+                            <p className="text-[11px] font-medium text-slate-800 mt-1">{label}</p>
                             {occupant && seesBookings && (
-                              <Link href={`/admin/bookings/${occupant.id}`} className="block text-[10px] text-blue-800 truncate hover:underline">
+                              <Link href={`/admin/bookings/${occupant.id}`} className="block text-[10px] text-emerald-800 truncate hover:underline">
                                 {occupant.is_vip ? "★ " : ""}
                                 {occupant.contact_name} · out {fmtDate(occupant.check_out).slice(0, 6)}
                               </Link>
@@ -167,10 +273,10 @@ export default async function RoomsPage() {
                                       name="housekeeping_status"
                                       value={hk}
                                       title={`Mark ${HOUSEKEEPING_STATUS_LABELS[hk].toLowerCase()}`}
-                                      className={`text-[9px] px-1.5 py-0.5 rounded border cursor-pointer ${
+                                      className={`text-[9px] px-1.5 py-0.5 rounded-md border cursor-pointer transition-colors duration-150 ${
                                         room.housekeeping_status === hk
-                                          ? "bg-slate-900 text-white border-slate-900"
-                                          : "bg-white/70 border-slate-200 text-slate-700 hover:border-yellow-500"
+                                          ? "bg-emerald-900 text-white border-emerald-900"
+                                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
                                       }`}
                                     >
                                       {HOUSEKEEPING_STATUS_LABELS[hk]}
@@ -187,6 +293,14 @@ export default async function RoomsPage() {
                   </div>
                 </div>
               ))}
+              <Pagination
+                page={page}
+                total={listCount ?? 0}
+                pageSize={ROOMS_PAGE}
+                path="/admin/rooms"
+                params={listParams}
+                className="pt-3 border-t border-slate-100"
+              />
               <p className="text-[11px] text-slate-500">
                 Occupied follows check-in and check-out automatically; check-out marks the room dirty and creates a cleaning
                 task. Only rooms a supervisor has <strong className="font-medium">inspected</strong> can be given to an
@@ -225,8 +339,8 @@ export default async function RoomsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {blockList.map((b) => (
-                    <tr key={b.id}>
-                      <td className="py-2 pr-3 font-medium">{b.rooms?.room_number}</td>
+                    <tr key={b.id} className={tableRowClass}>
+                      <td className="py-2.5 pr-3 font-medium">{b.rooms?.room_number}</td>
                       <td className="py-2 pr-3">
                         <Tag tone={b.kind === "out_of_order" ? "red" : "neutral"}>
                           {b.kind === "out_of_order" ? "Out of order" : "Out of service"}
@@ -313,15 +427,18 @@ export default async function RoomsPage() {
 
         {/* ── Inventory ── */}
         <Card>
-          <h2 className="text-base font-semibold text-slate-900 px-5 py-4 border-b border-slate-100">
-            Inventory ({roomList.length})
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 border-b border-slate-100">
+            <h2 className="text-slate-900">Inventory ({roomList.length})</h2>
+            {filtered && <span className="text-xs text-slate-500">Showing rooms that match the filters above</span>}
+          </div>
           {roomList.length === 0 ? (
             <EmptyState message="No rooms yet." />
+          ) : pageRooms.length === 0 ? (
+            <EmptyState message="No rooms match this view." />
           ) : (
             <ul className="divide-y divide-slate-100">
-              {roomList.map((room) => (
-                <li key={room.id} className="px-5 py-3">
+              {pageRooms.map((room) => (
+                <li key={room.id} className="px-5 py-3 hover:bg-slate-50 transition-colors duration-150">
                   <details>
                     <summary className="flex flex-wrap items-center gap-x-4 gap-y-1 cursor-pointer list-none text-sm">
                       <span className="font-medium text-slate-900 w-14">{room.room_number}</span>
@@ -352,6 +469,7 @@ export default async function RoomsPage() {
               ))}
             </ul>
           )}
+          <Pagination page={page} total={listCount ?? 0} pageSize={ROOMS_PAGE} path="/admin/rooms" params={listParams} />
         </Card>
 
         {can(session, "rooms.manage") && (
