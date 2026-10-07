@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Hotel Shamiyana PMS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Hotel Shamiyana</p>
+    <section id="starting">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>Starting up</h1>
+      <p id="status" class="muted" role="status">Getting ready…</p>
+      <p class="muted">The first start takes a minute while the database is prepared.</p>
+    </section>
+    <section id="failed" hidden>
+      <h1>Something went wrong</h1>
+      <p id="message"></p>
+      <p class="muted">The log files in <span id="logs"></span> show the details.</p>
+      <div class="row">
+        <button id="retry">Try again</button>
+        <button id="open-logs" class="secondary">Open log folder</button>
+      </div>
+    </section>
+  </main>
+  <script src="status.js"></script>
+</body>
+</html>

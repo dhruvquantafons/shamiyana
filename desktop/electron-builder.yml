@@ -1,0 +1,53 @@
+# Windows installer for the desktop demo. See README.md.
+appId: com.quantafons.shamiyana.demo
+productName: Hotel Shamiyana PMS
+copyright: Copyright © QuantaFONS
+
+directories:
+  app: .pack            # scripts/pack.mjs: the obfuscated main-process code
+  output: dist
+  buildResources: build
+
+asar: true
+
+# Everything staged by scripts/stage-runtime.mjs and stage-app.mjs, beside
+# app.asar in the installation's resources folder. The Next server itself
+# (.stage/app) is copied by scripts/after-pack.cjs.
+afterPack: scripts/after-pack.cjs
+extraResources:
+  - from: .stage/pgsql
+    to: pgsql
+  - from: .stage/bin
+    to: bin
+  - from: .stage/gotrue-migrations
+    to: gotrue-migrations
+  - from: .stage/migrations
+    to: migrations
+  - from: .stage/build-secrets.json
+    to: build-secrets.json
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Hotel Shamiyana PMS
+  artifactName: Shamiyana-PMS-Demo-Setup-${version}.exe
+  # The database and trial records stay; see README.md.
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+
+electronFuses:
+  runAsNode: true                          # the Next server runs on Electron's Node
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true

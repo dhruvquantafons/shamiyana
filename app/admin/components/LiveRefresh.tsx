@@ -19,6 +19,12 @@ export default function LiveRefresh({ tables = ["bookings", "rooms", "room_block
   const key = tables.join(",");
 
   useEffect(() => {
+    // The Windows desktop demo has no Realtime server; it refreshes on a timer.
+    if (process.env.NEXT_PUBLIC_LOCAL_DEMO === "1") {
+      const interval = setInterval(() => router.refresh(), 15000);
+      return () => clearInterval(interval);
+    }
+
     const supabase = createClient();
     const channel = supabase.channel(`live:${key}:${Math.random().toString(36).slice(2)}`);
 

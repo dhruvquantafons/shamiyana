@@ -1,0 +1,74 @@
+diff --git a/cmd/listen_control_unix.go b/cmd/listen_control_unix.go
+new file mode 100644
+index 0000000..95a7249
+--- /dev/null
++++ b/cmd/listen_control_unix.go
+@@ -0,0 +1,19 @@
++//go:build !windows
++
++package cmd
++
++import (
++	"syscall"
++
++	"golang.org/x/sys/unix"
++)
++
++func listenControl(network, address string, c syscall.RawConn) error {
++	var serr error
++	if err := c.Control(func(fd uintptr) {
++		serr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1) // #nosec G115
++	}); err != nil {
++		return err
++	}
++	return serr
++}
+diff --git a/cmd/listen_control_windows.go b/cmd/listen_control_windows.go
+new file mode 100644
+index 0000000..0c5e4c2
+--- /dev/null
++++ b/cmd/listen_control_windows.go
+@@ -0,0 +1,10 @@
++//go:build windows
++
++package cmd
++
++import "syscall"
++
++// Windows has no SO_REUSEPORT; a single listener is all the desktop demo needs.
++func listenControl(network, address string, c syscall.RawConn) error {
++	return nil
++}
+diff --git a/cmd/serve_cmd.go b/cmd/serve_cmd.go
+index bad35b7..dde7c72 100644
+--- a/cmd/serve_cmd.go
++++ b/cmd/serve_cmd.go
+@@ -5,11 +5,8 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"sync"
+-	"syscall"
+ 	"time"
+ 
+-	"golang.org/x/sys/unix"
+-
+ 	"github.com/pkg/errors"
+ 	"github.com/sirupsen/logrus"
+ 	"github.com/spf13/cobra"
+@@ -184,15 +181,7 @@ func serve(ctx context.Context) {
+ 	}()
+ 
+ 	lc := net.ListenConfig{
+-		Control: func(network, address string, c syscall.RawConn) error {
+-			var serr error
+-			if err := c.Control(func(fd uintptr) {
+-				serr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1) // #nosec G115
+-			}); err != nil {
+-				return err
+-			}
+-			return serr
+-		},
++		Control: listenControl,
+ 	}
+ 	listener, err := lc.Listen(ctx, "tcp", addr)
+ 	if err != nil {

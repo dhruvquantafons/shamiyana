@@ -42,3 +42,12 @@ next-env.d.ts
 
 # ...but the template belongs in the repo
 !.env.example
+
+# desktop demo build (see desktop/README.md)
+/desktop/node_modules
+/desktop/.stage
+/desktop/.cache
+/desktop/.pack
+/desktop/dist
+/desktop/.secrets
+/desktop/demo.env

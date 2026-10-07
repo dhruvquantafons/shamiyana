@@ -1,0 +1,26 @@
+{
+  "name": "shamiyana-pms-desktop",
+  "productName": "Hotel Shamiyana PMS",
+  "version": "0.1.0",
+  "description": "Hotel Shamiyana PMS — Windows desktop demo",
+  "author": "QuantaFONS",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "stage:runtime": "node scripts/stage-runtime.mjs",
+    "stage:app": "node scripts/stage-app.mjs",
+    "stage": "npm run stage:runtime && npm run stage:app",
+    "dev": "electron .",
+    "pack": "node scripts/pack.mjs",
+    "dist:win": "npm run pack && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "electron": "^44.6.0",
+    "electron-builder": "^26.15.3",
+    "extract-zip": "^2.0.1",
+    "javascript-obfuscator": "^5.9.0"
+  }
+}

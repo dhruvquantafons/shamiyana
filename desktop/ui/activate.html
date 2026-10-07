@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Hotel Shamiyana PMS — Activation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Hotel Shamiyana</p>
+    <h1 id="title">Your demo has ended</h1>
+    <p id="reason"></p>
+    <p>To keep using Hotel Shamiyana PMS, please contact <strong id="company">us</strong> and quote the Machine ID below. We will send you an activation key.</p>
+    <div class="contact" id="contact" hidden>
+      <div id="email" hidden></div>
+      <div id="phone" hidden></div>
+      <div id="website" hidden></div>
+    </div>
+    <label>Machine ID</label>
+    <div class="machine">
+      <code id="machine-id">…</code>
+      <button id="copy" class="secondary" type="button">Copy</button>
+    </div>
+    <form id="form">
+      <label for="key">Activation key</label>
+      <textarea id="key" placeholder="SHAM1.…" spellcheck="false" autocomplete="off" required></textarea>
+      <div class="error" id="error" role="alert"></div>
+      <div class="row"><button id="submit" type="submit">Activate</button></div>
+    </form>
+    <p class="muted">Your data is kept safely on this computer and will be there once activated.</p>
+  </main>
+  <script src="activate.js"></script>
+</body>
+</html>

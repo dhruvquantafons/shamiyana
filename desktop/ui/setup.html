@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Hotel Shamiyana PMS — Setup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <p class="brand">Hotel Shamiyana</p>
+    <h1>Create the administrator</h1>
+    <p>This is the first account on this computer. It can manage everything, including adding the rest of the staff under <strong>Staff</strong>.</p>
+    <form id="form">
+      <label for="name">Full name</label>
+      <input id="name" autocomplete="name" required>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="new-password" minlength="10" required>
+      <p class="muted">At least 10 characters, with upper- and lowercase letters, a number and a symbol.</p>
+      <label for="confirm">Confirm password</label>
+      <input id="confirm" type="password" autocomplete="new-password" minlength="10" required>
+      <div class="error" id="error" role="alert"></div>
+      <div class="row"><button id="submit" type="submit">Create account</button></div>
+    </form>
+    <p class="muted">At sign-in the two-factor code for this demo is <strong>123456</strong>.</p>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

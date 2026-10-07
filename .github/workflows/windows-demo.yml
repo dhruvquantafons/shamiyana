@@ -1,0 +1,87 @@
+# Builds the Windows desktop demo installer (desktop/README.md) on a Windows
+# runner, smoke-tests the whole local stack there, and uploads the .exe.
+# Runs on every push to exe-compile; once this file is on the default branch
+# it can also be started by hand from the Actions tab.
+
+name: Windows demo installer
+
+on:
+  push:
+    branches: [exe-compile]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      # Optional: fixes the JWT secret across builds so sign-ins survive an
+      # upgrade. Without it each build generates its own.
+      DESKTOP_JWT_SECRET: ${{ secrets.DESKTOP_JWT_SECRET }}
+      # Test-mode integrations baked into the demo (all optional).
+      RESEND_API_KEY: ${{ secrets.DEMO_RESEND_API_KEY }}
+      NOTIFY_FROM_EMAIL: ${{ secrets.DEMO_NOTIFY_FROM_EMAIL }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.DEMO_TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.DEMO_TWILIO_AUTH_TOKEN }}
+      TWILIO_FROM_NUMBER: ${{ secrets.DEMO_TWILIO_FROM_NUMBER }}
+      RAZORPAY_KEY_ID: ${{ secrets.DEMO_RAZORPAY_KEY_ID }}
+      RAZORPAY_KEY_SECRET: ${{ secrets.DEMO_RAZORPAY_KEY_SECRET }}
+    steps:
+      # The Supabase Auth patch must apply to LF sources.
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: false
+
+      - uses: actions/cache@v4
+        with:
+          path: desktop/.cache
+          key: desktop-runtime-${{ hashFiles('desktop/scripts/stage-runtime.mjs', 'desktop/patches/*') }}
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix desktop
+
+      - name: Stage PostgreSQL, PostgREST and Supabase Auth
+        run: node desktop/scripts/stage-runtime.mjs --target win32
+
+      # PostgreSQL needs the Visual C++ runtime; ship it beside postgres.exe
+      # (app-local deployment) so the client does not have to install it.
+      - name: Bundle the Visual C++ runtime
+        shell: pwsh
+        run: |
+          foreach ($dll in "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
+            if (-not (Test-Path "desktop/.stage/pgsql/bin/$dll")) {
+              Copy-Item "$env:WINDIR/System32/$dll" "desktop/.stage/pgsql/bin/"
+            }
+          }
+
+      - name: Build and stage the app
+        run: node desktop/scripts/stage-app.mjs
+
+      - name: Smoke test the stack on Windows
+        run: node desktop/scripts/smoke.js
+
+      - name: Build the installer
+        working-directory: desktop
+        run: npm run dist:win -- --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shamiyana-PMS-Demo-Setup
+          path: desktop/dist/*.exe
+          if-no-files-found: error
