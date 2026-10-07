@@ -141,6 +141,14 @@ main()
   .finally(async () => {
     await stack.stopStack();
     const failed = checks.filter((c) => !c.ok).length;
+    // CI throws the machine away: show the end of every log here.
+    if (failed) {
+      const logs = path.join(process.env.SHAMIYANA_DATA, "logs");
+      for (const file of fs.existsSync(logs) ? fs.readdirSync(logs) : []) {
+        const text = fs.readFileSync(path.join(logs, file), "utf8");
+        console.log(`\n──── ${file} (last 60 lines) ────\n${text.split(/\r?\n/).slice(-60).join("\n")}`);
+      }
+    }
     console.log(`\n${checks.length - failed}/${checks.length} checks passed. Logs: ${path.join(process.env.SHAMIYANA_DATA, "logs")}`);
     process.exit(failed ? 1 : 0);
   });

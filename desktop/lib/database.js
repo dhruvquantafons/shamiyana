@@ -13,12 +13,16 @@ const paths = require("./paths");
 const { PORTS, HOST, dbUrl } = require("./config");
 const { run, waitFor, portOpen } = require("./processes");
 
-const env = () => ({
-  ...process.env,
-  // Postgres's own DLLs/dylibs, for initdb, pg_ctl and PostgREST alike.
-  PATH: [path.dirname(paths.pgBin("postgres")), process.env.PATH].join(path.delimiter),
-  ...(process.platform === "darwin" ? { DYLD_LIBRARY_PATH: paths.pgLib } : {}),
-});
+// Postgres's own DLLs/dylibs on the search path, for initdb, pg_ctl and
+// PostgREST alike. Windows spells the variable "Path", and a second "PATH"
+// beside it would leave which one wins to chance.
+function env() {
+  const result = { ...process.env };
+  const key = Object.keys(result).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  result[key] = [path.dirname(paths.pgBin("postgres")), result[key]].filter(Boolean).join(path.delimiter);
+  if (process.platform === "darwin") result.DYLD_LIBRARY_PATH = paths.pgLib;
+  return result;
+}
 
 async function initCluster(config) {
   if (fs.existsSync(path.join(paths.pgData, "PG_VERSION"))) return false;
